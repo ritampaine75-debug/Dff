@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULTRA | Premium Task Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #f43f5e;
+            --success: #10b981;
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(255, 255, 255, 0.03);
+            --radius-xl: 24px;
+            --radius-lg: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.1) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 540px;
+            margin-top: 40px;
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        header {
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .brand h1 {
+            font-weight: 800;
+            font-size: 2.5rem;
+            letter-spacing: -0.05em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .stats-pill {
+            background: var(--glass);
+            padding: 8px 16px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-pill span {
+            color: var(--primary);
+        }
+
+        .input-group {
+            position: relative;
+            background: var(--card-bg);
+            border-radius: var(--radius-xl);
+            padding: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            padding: 12px 16px;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .add-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .add-btn:hover {
+            transform: scale(1.05);
+            background: #4f46e5;
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+
+        .filters::-webkit-scrollbar { display: none; }
+
+        .filter-btn {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 8px 18px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .todo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .todo-item {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideIn 0.4s ease-out backwards;
+            cursor: pointer;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .todo-item:hover {
+            border-color: rgba(255,255,255,0.15);
+            background: rgba(45, 55, 72, 0.8);
+            transform: scale(1.01);
+        }
+
+        .checkbox {
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            border: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .todo-item.completed .checkbox {
+            background: var(--primary);
+        }
+
+        .checkbox i {
+            color: white;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s;
+        }
+
+        .todo-item.completed .checkbox i {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .todo-content {
+            flex: 1;
+        }
+
+        .todo-text {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-main);
+            transition: all 0.3s;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+
+        .delete-btn {
+            opacity: 0;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .todo-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--accent);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state i {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            height: 6px;
+            background: var(--glass);
+            border-radius: 10px;
+            margin-bottom: 32px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, var(--primary), #818cf8);
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+        }
+
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 480px) {
+            .container { margin-top: 20px; }
+            .brand h1 { font-size: 2rem; }
+            .todo-item { padding: 14px; }
+            .delete-btn { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <p id="date-display">Monday, June 12</p>
+                <h1>My Focus</h1>
+            </div>
+            <div class="stats-pill">
+                <i data-lucide="check-circle-2" size="16"></i>
+                <span id="completion-count">0/0</span>
+            </div>
+        </header>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="todo-input" placeholder="What needs to be done?" autocomplete="off">
+            <button class="add-btn" id="add-btn">
+                <i data-lucide="plus" size="24"></i>
+            </button>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">All Tasks</button>
+            <button class="filter-btn" data-filter="active">Active</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
+        </div>
+
+        <div id="todo-list" class="todo-list">
+            <!-- Items injected by JS -->
+        </div>
+
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <i data-lucide="layers" size="48"></i>
+            <p>Your workspace is clear. Add a task to begin.</p>
+        </div>
+    </div>
+
+    <div id="toast">Task Completed! 🚀</div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // State Management
+        let todos = JSON.parse(localStorage.getItem('ultra-todos')) || [
+            { id: 1, text: "Design premium dashboard interface", completed: false },
+            { id: 2, text: "Refactor core animation logic", completed: true }
+        ];
+        let currentFilter = 'all';
+
+        // DOM Elements
+        const input = document.getElementById('todo-input');
+        const addBtn = document.getElementById('add-btn');
+        const list = document.getElementById('todo-list');
+        const emptyState = document.getElementById('empty-state');
+        const dateDisplay = document.getElementById('date-display');
+        const completionCount = document.getElementById('completion-count');
+        const progressBar = document.getElementById('progress-bar');
+        const toast = document.getElementById('toast');
+
+        // Set Date
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        dateDisplay.innerText = new Date().toLocaleDateString('en-US', options);
+
+        // Core Functions
+        function saveTodos() {
+            localStorage.setItem('ultra-todos', JSON.stringify(todos));
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = todos.length;
+            const completed = todos.filter(t => t.completed).length;
+            const percentage = total === 0 ? 0 : (completed / total) * 100;
+            
+            completionCount.innerText = `${completed}/${total}`;
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function render() {
+            const filteredTodos = todos.filter(todo => {
+                if (currentFilter === 'active') return !todo.completed;
+                if (currentFilter === 'completed') return todo.completed;
+                return true;
+            });
+
+            if (filteredTodos.length === 0) {
+                list.style.display = 'none';
+                emptyState.style.display = 'block';
+            } else {
+                list.style.display = 'flex';
+                emptyState.style.display = 'none';
+                list.innerHTML = '';
+
+                filteredTodos.forEach(todo => {
+                    const item = document.createElement('div');
+                    item.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+                    item.innerHTML = `
+                        <div class="checkbox">
+                            <i data-lucide="check" size="16"></i>
+                        </div>
+                        <div class="todo-content">
+                            <div class="todo-text">${todo.text}</div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteTodo(event, ${todo.id})">
+                            <i data-lucide="trash-2" size="18"></i>
+                        </button>
+                    `;
+                    item.onclick = () => toggleTodo(todo.id);
+                    list.appendChild(item);
+                });
+                lucide.createIcons();
+            }
+            updateStats();
+        }
+
+        function addTodo() {
+            const text = input.value.trim();
+            if (text === '') return;
+
+            const newTodo = {
+                id: Date.now(),
+                text,
+                completed: false
+            };
+
+            todos.unshift(newTodo);
+            input.value = '';
+            saveTodos();
+            render();
+            
+            // Subtle feedback
+            const firstItem = list.firstChild;
+            if(firstItem) {
+                firstItem.style.animation = 'none';
+                firstItem.offsetHeight; // trigger reflow
+                firstItem.style.animation = 'slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            }
+        }
+
+        function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+                if(todo.completed) showToast("Task completed! ✨");
+                saveTodos();
+                render();
+            }
+        }
+
+        function deleteTodo(e, id) {
+            e.stopPropagation();
+            const item = e.target.closest('.todo-item');
+            item.style.transform = 'translateX(20px)';
+            item.style.opacity = '0';
+            
+            setTimeout(() => {
+                todos = todos.filter(t => t.id !== id);
+                saveTodos();
+                render();
+            }, 300);
+        }
+
+        // Event Listeners
+        addBtn.onclick = addTodo;
+        input.onkeypress = (e) => { if (e.key === 'Enter') addTodo(); };
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelector('.filter-btn.active').classList.remove('active');
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                render();
+            };
+        });
+
+        // Initial Load
+        render();
+
+    </script>
+</body>
+</html>
