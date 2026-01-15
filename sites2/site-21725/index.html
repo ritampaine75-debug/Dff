@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Simple Calculator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .calculator {
+            background-color: #1c1c1c;
+            width: 100%;
+            max-width: 360px;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        #display {
+            width: 100%;
+            height: 80px;
+            background: transparent;
+            border: none;
+            color: white;
+            text-align: right;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            padding: 10px;
+            outline: none;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        button {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: none;
+            font-size: 1.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+
+        .num {
+            background-color: #333333;
+            color: white;
+        }
+
+        .op {
+            background-color: #ff9f0a;
+            color: white;
+        }
+
+        .util {
+            background-color: #a5a5a5;
+            color: black;
+        }
+
+        .zero {
+            grid-column: span 2;
+            aspect-ratio: unset;
+            border-radius: 40px;
+            justify-content: flex-start;
+            padding-left: 30px;
+        }
+
+        @media (max-width: 320px) {
+            .calculator { padding: 15px; }
+            button { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator">
+        <input type="text" id="display" readonly value="0">
+        <div class="buttons">
+            <button class="util" onclick="clearDisplay()">AC</button>
+            <button class="util" onclick="deleteLast()">DEL</button>
+            <button class="util" onclick="appendToDisplay('%')">%</button>
+            <button class="op" onclick="appendToDisplay('/')">÷</button>
+            
+            <button class="num" onclick="appendToDisplay('7')">7</button>
+            <button class="num" onclick="appendToDisplay('8')">8</button>
+            <button class="num" onclick="appendToDisplay('9')">9</button>
+            <button class="op" onclick="appendToDisplay('*')">×</button>
+            
+            <button class="num" onclick="appendToDisplay('4')">4</button>
+            <button class="num" onclick="appendToDisplay('5')">5</button>
+            <button class="num" onclick="appendToDisplay('6')">6</button>
+            <button class="op" onclick="appendToDisplay('-')">−</button>
+            
+            <button class="num" onclick="appendToDisplay('1')">1</button>
+            <button class="num" onclick="appendToDisplay('2')">2</button>
+            <button class="num" onclick="appendToDisplay('3')">3</button>
+            <button class="op" onclick="appendToDisplay('+')">+</button>
+            
+            <button class="num zero" onclick="appendToDisplay('0')">0</button>
+            <button class="num" onclick="appendToDisplay('.')">.</button>
+            <button class="op" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+    <script>
+        const display = document.getElementById('display');
+
+        function appendToDisplay(input) {
+            if (display.value === '0' && input !== '.') {
+                display.value = input;
+            } else {
+                display.value += input;
+            }
+        }
+
+        function clearDisplay() {
+            display.value = '0';
+        }
+
+        function deleteLast() {
+            if (display.value.length > 1) {
+                display.value = display.value.slice(0, -1);
+            } else {
+                display.value = '0';
+            }
+        }
+
+        function calculate() {
+            try {
+                // Replacing unicode visual operators with JS operators
+                let expression = display.value;
+                // Basic sanitation and calculation
+                const result = eval(expression);
+                display.value = Number.isInteger(result) ? result : result.toFixed(4).replace(/\.?0+$/, "");
+            } catch (error) {
+                display.value = "Error";
+                setTimeout(clearDisplay, 1500);
+            }
+        }
+
+        // Add keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= 0 && e.key <= 9) appendToDisplay(e.key);
+            if (e.key === '.') appendToDisplay('.');
+            if (e.key === '+') appendToDisplay('+');
+            if (e.key === '-') appendToDisplay('-');
+            if (e.key === '*') appendToDisplay('*');
+            if (e.key === '/') appendToDisplay('/');
+            if (e.key === 'Enter' || e.key === '=') calculate();
+            if (e.key === 'Backspace') deleteLast();
+            if (e.key === 'Escape') clearDisplay();
+        });
+    </script>
+</body>
+</html>
