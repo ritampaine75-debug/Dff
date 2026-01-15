@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULTRA QR & BARCODE PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --accent: #f43f5e;
+            --bg: #0f172a;
+            --card: #1e293b;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: #f8fafc;
+            min-height: 100vh;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .theme-gold { --primary: #fbbf24; --accent: #d97706; --bg: #1a1a1a; --card: #2d2d2d; }
+        .theme-neon { --primary: #22c55e; --accent: #a855f7; --bg: #000000; --card: #111111; }
+        .theme-ocean { --primary: #0ea5e9; --accent: #2dd4bf; --bg: #082f49; --card: #0c4a6e; }
+        .theme-minimal { --primary: #ffffff; --accent: #94a3b8; --bg: #000000; --card: #111111; }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px -3px var(--primary);
+        }
+
+        .tab-active {
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+        }
+
+        #reader {
+            width: 100% !important;
+            border: none !important;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        #reader video {
+            border-radius: 1rem;
+            object-fit: cover;
+        }
+
+        canvas, img {
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+
+        .premium-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-md mx-auto space-y-6">
+        <!-- Header -->
+        <header class="text-center py-6">
+            <h1 class="text-3xl font-extrabold tracking-tighter premium-gradient bg-clip-text text-transparent italic">ULTRA PRO</h1>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">QR & Barcode Ecosystem</p>
+        </header>
+
+        <!-- Theme Selector -->
+        <div class="flex justify-center gap-3 mb-4 overflow-x-auto py-2 no-scrollbar">
+            <button onclick="setTheme('default')" class="w-6 h-6 rounded-full bg-indigo-500 border-2 border-white"></button>
+            <button onclick="setTheme('theme-gold')" class="w-6 h-6 rounded-full bg-yellow-500 border-2 border-white"></button>
+            <button onclick="setTheme('theme-neon')" class="w-6 h-6 rounded-full bg-green-500 border-2 border-white"></button>
+            <button onclick="setTheme('theme-ocean')" class="w-6 h-6 rounded-full bg-sky-500 border-2 border-white"></button>
+            <button onclick="setTheme('theme-minimal')" class="w-6 h-6 rounded-full bg-white border-2 border-white"></button>
+        </div>
+
+        <!-- Mode Switcher -->
+        <div class="glass rounded-2xl p-1 flex">
+            <button id="genTab" onclick="switchMode('generate')" class="flex-1 py-3 text-sm font-bold tab-active transition-all">GENERATE</button>
+            <button id="scanTab" onclick="switchMode('scan')" class="flex-1 py-3 text-sm font-bold text-slate-400 transition-all">SCANNER</button>
+        </div>
+
+        <!-- Generator Section -->
+        <div id="generateUI" class="space-y-6 animate-in fade-in duration-500">
+            <div class="glass rounded-3xl p-6 space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 mb-2 block uppercase">Input URL or Content</label>
+                    <input type="text" id="userInput" placeholder="https://example.com" 
+                        class="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-4 focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all text-white">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="generate('QR')" class="btn-primary py-4 rounded-xl font-bold text-sm tracking-tight active:scale-95 transition-transform">GENERATE QR</button>
+                    <button onclick="generate('BAR')" class="bg-white/5 border border-white/10 py-4 rounded-xl font-bold text-sm active:scale-95 transition-transform">BARCODE</button>
+                </div>
+            </div>
+
+            <!-- Output Card -->
+            <div id="outputWrapper" class="hidden glass rounded-3xl p-8 text-center animate-in zoom-in-95 duration-300">
+                <div id="qrcode" class="flex justify-center mb-6 bg-white p-4 rounded-2xl inline-block mx-auto"></div>
+                <svg id="barcode" class="mx-auto mb-6 bg-white p-4 rounded-2xl hidden"></svg>
+                
+                <div class="flex gap-3">
+                    <button onclick="downloadCode()" class="flex-1 bg-white text-black py-4 rounded-xl font-bold text-sm">DOWNLOAD</button>
+                    <button onclick="resetGen()" class="px-6 bg-red-500/20 text-red-500 rounded-xl font-bold">×</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanner Section -->
+        <div id="scanUI" class="hidden space-y-6 animate-in slide-in-from-bottom-10 duration-500">
+            <div class="glass rounded-3xl overflow-hidden relative">
+                <div id="reader"></div>
+                <div class="absolute inset-0 pointer-events-none border-[40px] border-black/40"></div>
+            </div>
+            
+            <div id="scanResult" class="hidden glass rounded-3xl p-6 border-l-4 border-[var(--primary)]">
+                <p class="text-xs font-bold text-slate-400 uppercase mb-2">Scanned Result</p>
+                <div id="scanText" class="text-lg font-semibold break-all mb-4"></div>
+                <div class="flex gap-2">
+                    <button onclick="copyScan()" class="flex-1 bg-white/10 py-3 rounded-lg text-xs font-bold">COPY</button>
+                    <a id="visitBtn" href="#" target="_blank" class="flex-1 btn-primary py-3 rounded-lg text-xs font-bold text-center">OPEN LINK</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center pt-8 opacity-40">
+            <p class="text-[10px] tracking-widest font-bold">PREMIUM EDITION v2.0</p>
+        </footer>
+    </div>
+
+    <script>
+        let html5QrCode;
+
+        function setTheme(theme) {
+            document.body.className = 'p-4 md:p-8 ' + (theme === 'default' ? '' : theme);
+        }
+
+        function switchMode(mode) {
+            const genUI = document.getElementById('generateUI');
+            const scanUI = document.getElementById('scanUI');
+            const genTab = document.getElementById('genTab');
+            const scanTab = document.getElementById('scanTab');
+
+            if (mode === 'generate') {
+                genUI.classList.remove('hidden');
+                scanUI.classList.add('hidden');
+                genTab.classList.add('tab-active');
+                genTab.classList.remove('text-slate-400');
+                scanTab.classList.remove('tab-active');
+                scanTab.classList.add('text-slate-400');
+                if (html5QrCode) html5QrCode.stop();
+            } else {
+                genUI.classList.add('hidden');
+                scanUI.classList.remove('hidden');
+                scanTab.classList.add('tab-active');
+                scanTab.classList.remove('text-slate-400');
+                genTab.classList.remove('tab-active');
+                genTab.classList.add('text-slate-400');
+                startScanner();
+            }
+        }
+
+        function generate(type) {
+            const input = document.getElementById('userInput').value;
+            if (!input) return alert('Please enter content');
+
+            const qrContainer = document.getElementById('qrcode');
+            const barContainer = document.getElementById('barcode');
+            const wrapper = document.getElementById('outputWrapper');
+
+            qrContainer.innerHTML = '';
+            wrapper.classList.remove('hidden');
+
+            if (type === 'QR') {
+                qrContainer.classList.remove('hidden');
+                barContainer.classList.add('hidden');
+                new QRCode(qrContainer, {
+                    text: input,
+                    width: 256,
+                    height: 256,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            } else {
+                qrContainer.classList.add('hidden');
+                barContainer.classList.remove('hidden');
+                try {
+                    JsBarcode("#barcode", input, {
+                        format: "CODE128",
+                        lineColor: "#000",
+                        width: 2,
+                        height: 100,
+                        displayValue: true
+                    });
+                } catch(e) {
+                    alert("Invalid format for barcode");
+                }
+            }
+        }
+
+        function resetGen() {
+            document.getElementById('outputWrapper').classList.add('hidden');
+            document.getElementById('userInput').value = '';
+        }
+
+        function startScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+                const resultDiv = document.getElementById('scanResult');
+                const textDiv = document.getElementById('scanText');
+                const visitBtn = document.getElementById('visitBtn');
+                
+                resultDiv.classList.remove('hidden');
+                textDiv.innerText = decodedText;
+                
+                if (decodedText.startsWith('http')) {
+                    visitBtn.style.display = 'block';
+                    visitBtn.href = decodedText;
+                } else {
+                    visitBtn.style.display = 'none';
+                }
+                
+                // haptic feedback if available
+                if (window.navigator.vibrate) window.navigator.vibrate(100);
+            });
+        }
+
+        function copyScan() {
+            const text = document.getElementById('scanText').innerText;
+            navigator.clipboard.writeText(text);
+            alert('Copied to clipboard');
+        }
+
+        function downloadCode() {
+            const qrImg = document.querySelector('#qrcode img');
+            const barSvg = document.getElementById('barcode');
+            let link = document.createElement('a');
+            
+            if (!document.getElementById('qrcode').classList.contains('hidden')) {
+                link.href = qrImg.src;
+                link.download = 'ultra-qr.png';
+            } else {
+                const svgData = new XMLSerializer().serializeToString(barSvg);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                link.href = URL.createObjectURL(svgBlob);
+                link.download = 'ultra-barcode.svg';
+            }
+            link.click();
+        }
+    </script>
+</body>
+</html>
