@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instant HTML Publisher</title>
+    <style>
+        :root {
+            --primary: #0969da;
+            --bg: #0d1117;
+            --card-bg: #161b22;
+            --text: #c9d1d9;
+            --border: #30363d;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
+            padding: 20px; 
+            background-color: var(--bg); 
+            color: var(--text);
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        
+        .container { background: var(--card-bg); padding: 25px; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
+        h2 { margin-top: 0; color: #58a6ff; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        
+        /* Input Areas */
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px; color: #8b949e; }
+        input[type="text"], input[type="password"] { 
+            width: 100%; padding: 10px; 
+            background: #0d1117; border: 1px solid var(--border); 
+            border-radius: 6px; color: white; box-sizing: border-box; 
+        }
+        
+        /* Buttons */
+        button { background-color: #238636; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; width: 100%; }
+        button:hover { background-color: #2ea043; }
+        button:disabled { background-color: #238636; opacity: 0.5; cursor: not-allowed; }
+
+        /* Progress Bar */
+        #progress-container { width: 100%; background-color: var(--border); border-radius: 6px; margin-top: 20px; height: 10px; display: none; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background-color: #58a6ff; transition: width 0.2s; }
+        #status { margin-top: 15px; font-weight: bold; text-align: center; }
+
+        /* File List */
+        .file-list { margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px; }
+        .file-item { 
+            background: #21262d; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 10px; 
+            display: flex; 
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid var(--border);
+        }
+        .file-info { font-weight: bold; color: #58a6ff; word-break: break-all; }
+        
+        .action-row { display: flex; gap: 10px; }
+        .btn-link { 
+            flex: 1; 
+            text-align: center; 
+            background: #1f6feb; 
+            color: white; 
+            text-decoration: none; 
+            padding: 8px; 
+            border-radius: 4px; 
+            font-size: 14px; 
+        }
+        .btn-copy { background: #30363d; flex: 1; border: 1px solid #8b949e; }
+        
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚀 HTML Website Publisher</h2>
+    
+    <!-- Configuration -->
+    <div class="input-group">
+        <label>GitHub Token (Required to upload):</label>
+        <input type="password" id="token" placeholder="ghp_xxxxxxxxxxxx">
+    </div>
+
+    <!-- Upload Section -->
+    <div class="input-group">
+        <label>Select Your HTML File (index.html, etc):</label>
+        <input type="file" id="myFile" accept=".html, .htm">
+    </div>
+
+    <button onclick="startUpload()" id="uploadBtn">Publish Website</button>
+
+    <!-- Progress UI -->
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <div id="status"></div>
+
+    <!-- File List Section -->
+    <div class="file-list">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3>🌐 Hosted Websites</h3>
+            <button onclick="fetchFileList()" style="width: auto; padding: 5px 15px; font-size: 12px; background: #30363d;">Refresh List</button>
+        </div>
+        <div id="fileListContainer"></div>
+    </div>
+</div>
+
+<script>
+    // --- USER CONFIGURATION ---
+    const USERNAME = "ritampaine75-debug";
+    const REPO = "Dff";
+    const FOLDER = "sites"; // Files will be saved in 'sites' folder
+    const BRANCH = "main";  // Usually 'main' or 'master'
+    // --------------------------
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedToken = localStorage.getItem('gh_token');
+        if(savedToken) {
+            document.getElementById('token').value = savedToken;
+            fetchFileList(); // Auto load list if token exists
+        }
+    });
+
+    async function fetchFileList() {
+        const token = document.getElementById('token').value;
+        const listContainer = document.getElementById('fileListContainer');
+        
+        if (!token) {
+            listContainer.innerHTML = "<p style='color:#8b949e'>Enter token to load your websites.</p>";
+            return;
+        }
+
+        listContainer.innerHTML = "<p>Scanning repository...</p>";
+        const url = `https://api.github.com/repos/${USERNAME}/${REPO}/contents/${FOLDER}`;
+
+        try {
+            const response = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
+            if (!response.ok) throw new Error("No sites found or Token Invalid");
+
+            const data = await response.json();
+            listContainer.innerHTML = ""; 
+
+            // Sort by newest (files don't have date in basic API, so we just list them)
+            data.forEach(file => {
+                if(file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+                    // Create the Live Hosting Link (Using githack for instant rendering)
+                    const liveUrl = `https://raw.githack.com/${USERNAME}/${REPO}/${BRANCH}/${FOLDER}/${file.name}`;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    div.innerHTML = `
+                        <div class="file-info">📄 ${file.name}</div>
+                        <div class="action-row">
+                            <a href="${liveUrl}" target="_blank" class="btn-link">🌍 Open Live Website</a>
+                            <button class="btn-copy" onclick="copyLink('${liveUrl}')">Copy Link</button>
+                        </div>
+                    `;
+                    listContainer.appendChild(div);
+                }
+            });
+
+        } catch (error) {
+            listContainer.innerHTML = `<p style='color:orange'>Status: ${error.message} (Folder might be empty yet)</p>`;
+        }
+    }
+
+    function startUpload() {
+        const fileInput = document.getElementById('myFile');
+        const token = document.getElementById('token').value;
+        const statusDiv = document.getElementById('status');
+        const progressBar = document.getElementById('progress-bar');
+        const progressContainer = document.getElementById('progress-container');
+        const btn = document.getElementById('uploadBtn');
+
+        if (fileInput.files.length === 0) { alert("Please select an HTML file!"); return; }
+        if (!token) { alert("Please enter your GitHub Token!"); return; }
+
+        localStorage.setItem('gh_token', token);
+
+        const file = fileInput.files[0];
+        
+        // UI Reset
+        statusDiv.innerText = "Encoding file...";
+        statusDiv.style.color = "#58a6ff";
+        progressContainer.style.display = "block";
+        progressBar.style.width = "0%";
+        btn.disabled = true;
+
+        const reader = new FileReader();
+        
+        reader.onload = function() {
+            const base64Content = reader.result.split(',')[1];
+            // Create a clean filename or keep original
+            const fileName = file.name; 
+            const url = `https://api.github.com/repos/${USERNAME}/${REPO}/contents/${FOLDER}/${fileName}`;
+
+            const payload = {
+                message: `Published ${fileName}`,
+                content: base64Content
+            };
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", url, true);
+            xhr.setRequestHeader("Authorization", `token ${token}`);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percent + "%";
+                    statusDiv.innerText = `Uploading to GitHub: ${percent}%`;
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const liveUrl = `https://raw.githack.com/${USERNAME}/${REPO}/${BRANCH}/${FOLDER}/${fileName}`;
+                    
+                    statusDiv.innerHTML = `✅ <b>Published!</b> <br><br> <a href="${liveUrl}" target="_blank" style="color:#58a6ff; font-size:18px;">Click here to Open Website</a>`;
+                    statusDiv.style.color = "#2ea043";
+                    fetchFileList(); 
+                } else {
+                    statusDiv.innerText = `❌ Error: ${JSON.parse(xhr.responseText).message}`;
+                    statusDiv.style.color = "#da3633";
+                }
+                btn.disabled = false;
+            };
+
+            xhr.onerror = function() {
+                statusDiv.innerText = "❌ Network Connection Failed";
+                statusDiv.style.color = "#da3633";
+                btn.disabled = false;
+            };
+
+            xhr.send(JSON.stringify(payload));
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    function copyLink(url) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert("Website URL Copied to Clipboard!");
+        });
+    }
+</script>
+
+</body>
+</html>
