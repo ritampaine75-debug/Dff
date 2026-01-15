@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AeroFood: Flying Car Delivery</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none; }
+        #score { font-size: 24px; font-weight: bold; }
+        #fuel-container { width: 200px; height: 20px; background: rgba(0,0,0,0.3); border: 2px solid white; margin-top: 10px; border-radius: 10px; overflow: hidden; }
+        #fuel-bar { width: 100%; height: 100%; background: #ffcc00; transition: width 0.1s; }
+        #controls { position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: space-around; pointer-events: none; }
+        .btn { width: 80px; height: 80px; background: rgba(255,255,255,0.2); border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; pointer-events: auto; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .btn:active { background: rgba(255,255,255,0.5); transform: scale(0.9); }
+        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 100; text-align: center; }
+        h1 { font-size: 48px; margin-bottom: 10px; color: #ffcc00; }
+        button#start-btn { padding: 15px 40px; font-size: 24px; cursor: pointer; background: #ffcc00; border: none; border-radius: 30px; font-weight: bold; color: #333; transition: 0.3s; }
+        button#start-btn:hover { transform: scale(1.1); background: #fff; }
+        .inst { margin-top: 20px; font-size: 14px; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="score">SCORE: 0</div>
+        <div id="fuel-container"><div id="fuel-bar"></div></div>
+    </div>
+
+    <div id="controls">
+        <div class="btn" id="btn-left">LEFT</div>
+        <div class="btn" id="btn-fly" style="width: 100px; height: 100px; background: rgba(255,204,0,0.4);">FLY</div>
+        <div class="btn" id="btn-right">RIGHT</div>
+    </div>
+
+    <div id="menu">
+        <h1>AERO FOOD</h1>
+        <p>Collect Snacks • Fly High • Don't Crash</p>
+        <button id="start-btn">START DELIVERY</button>
+        <div class="inst">WASD or Arrows to Move | SPACE to Fly<br>Mobile: Use On-Screen Buttons</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, car, clock;
+        let score = 0;
+        let fuel = 100;
+        let gameActive = false;
+        let speed = 0.5;
+        let velocity = new THREE.Vector3();
+        let foodItems = [];
+        let clouds = [];
+        let keys = {};
+
+        const CONFIG = {
+            gravity: 0.005,
+            lift: 0.012,
+            maxFuel: 100,
+            fuelConsumption: 0.25,
+            foodValue: 15
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 20, 100);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(10, 20, 10);
+            sun.castShadow = true;
+            scene.add(sun);
+
+            createCar();
+            createGround();
+            spawnEnvironment();
+
+            clock = new THREE.Clock();
+
+            window.addEventListener('keydown', e => keys[e.code] = true);
+            window.addEventListener('keyup', e => keys[e.code] = false);
+            window.addEventListener('resize', onWindowResize);
+
+            // Touch support
+            const setupBtn = (id, key) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+            };
+            setupBtn('btn-left', 'ArrowLeft');
+            setupBtn('btn-right', 'ArrowRight');
+            setupBtn('btn-fly', 'Space');
+
+            document.getElementById('start-btn').addEventListener('click', startGame);
+
+            animate();
+        }
+
+        function createCar() {
+            car = new THREE.Group();
+
+            // Body
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(2, 0.8, 4),
+                new THREE.MeshPhongMaterial({ color: 0xff4444 })
+            );
+            body.castShadow = true;
+            car.add(body);
+
+            // Cabin
+            const cabin = new THREE.Mesh(
+                new THREE.BoxGeometry(1.4, 0.7, 1.5),
+                new THREE.MeshPhongMaterial({ color: 0x333333, transparent: true, opacity: 0.7 })
+            );
+            cabin.position.set(0, 0.7, -0.2);
+            car.add(cabin);
+
+            // Wings
+            const wingGeo = new THREE.BoxGeometry(4, 0.1, 1.2);
+            const wingMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee });
+            const wings = new THREE.Mesh(wingGeo, wingMat);
+            wings.position.set(0, 0, 0);
+            car.add(wings);
+
+            // Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+            const wheelMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+            const wheelsPos = [[-1, -0.4, 1.2], [1, -0.4, 1.2], [-1, -0.4, -1.2], [1, -0.4, -1.2]];
+            
+            wheelsPos.forEach(pos => {
+                const w = new THREE.Mesh(wheelGeo, wheelMat);
+                w.rotation.z = Math.PI / 2;
+                w.position.set(...pos);
+                car.add(w);
+            });
+
+            car.position.y = 1;
+            scene.add(car);
+        }
+
+        function createGround() {
+            const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+            const groundMat = new THREE.MeshPhongMaterial({ color: 0x3a9d23 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Add simple road
+            const roadGeo = new THREE.PlaneGeometry(10, 1000);
+            const roadMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            road.position.y = 0.01;
+            scene.add(road);
+        }
+
+        function spawnEnvironment() {
+            for(let i=0; i<40; i++) {
+                spawnCloud(Math.random() * 200 - 100, Math.random() * 20 + 10, -Math.random() * 400);
+            }
+        }
+
+        function spawnCloud(x, y, z) {
+            const cloud = new THREE.Group();
+            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true });
+            for(let i=0; i<3; i++) {
+                const part = new THREE.Mesh(new THREE.IcosahedronGeometry(2, 0), mat);
+                part.position.x = i * 1.5;
+                part.scale.set(1, Math.random() + 0.5, 1);
+                cloud.add(part);
+            }
+            cloud.position.set(x, y, z);
+            scene.add(cloud);
+            clouds.push(cloud);
+        }
+
+        function spawnFood() {
+            const types = [
+                { color: 0xffd700, name: 'Burger' }, // Yellow/Gold
+                { color: 0xff4500, name: 'Pizza' },  // OrangeRed
+                { color: 0x00ff00, name: 'Soda' }    // Lime
+            ];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            const geo = new THREE.IcosahedronGeometry(0.8, 0);
+            const mat = new THREE.MeshPhongMaterial({ color: type.color, emissive: type.color, emissiveIntensity: 0.5 });
+            const food = new THREE.Mesh(geo, mat);
+            
+            food.position.set(
+                Math.random() * 20 - 10,
+                Math.random() * 15 + 2,
+                car.position.z - 100 - Math.random() * 50
+            );
+            
+            scene.add(food);
+            foodItems.push(food);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function startGame() {
+            gameActive = true;
+            score = 0;
+            fuel = 100;
+            car.position.set(0, 1, 0);
+            velocity.set(0, 0, 0);
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('score').innerText = `SCORE: ${score}`;
+            
+            // Clear existing food
+            foodItems.forEach(f => scene.remove(f));
+            foodItems = [];
+        }
+
+        function gameOver() {
+            gameActive = false;
+            document.getElementById('menu').style.display = 'flex';
+            document.getElementById('menu').querySelector('h1').innerText = "GAME OVER";
+            document.getElementById('menu').querySelector('p').innerText = `You delivered ${score} snacks!`;
+            document.getElementById('start-btn').innerText = "TRY AGAIN";
+        }
+
+        function update() {
+            if(!gameActive) return;
+
+            // Movement Input
+            if (keys['ArrowLeft'] || keys['KeyA']) velocity.x -= 0.02;
+            if (keys['ArrowRight'] || keys['KeyD']) velocity.x += 0.02;
+            
+            // Flight Logic
+            if ((keys['Space'] || keys['KeyW']) && fuel > 0) {
+                velocity.y += CONFIG.lift;
+                fuel -= CONFIG.fuelConsumption;
+                car.rotation.x = -0.2;
+            } else {
+                velocity.y -= CONFIG.gravity;
+                car.rotation.x = 0.1;
+            }
+
+            // Apply friction & limits
+            velocity.x *= 0.95;
+            velocity.y *= 0.98;
+            
+            car.position.x += velocity.x;
+            car.position.y += velocity.y;
+            car.position.z -= speed;
+
+            // Bounds & Collision
+            if (car.position.y < 0.6) {
+                car.position.y = 0.6;
+                velocity.y = 0;
+                car.rotation.x = 0;
+            }
+            if (car.position.y > 25) car.position.y = 25;
+            
+            car.rotation.z = -velocity.x * 0.5;
+            car.rotation.y = THREE.MathUtils.lerp(car.rotation.y, -velocity.x * 0.8, 0.1);
+
+            // Camera follow
+            camera.position.lerp(new THREE.Vector3(car.position.x, car.position.y + 4, car.position.z + 10), 0.1);
+            camera.lookAt(car.position.x, car.position.y, car.position.z - 5);
+
+            // Food Spawning & Collision
+            if (Math.random() < 0.05) spawnFood();
+
+            for (let i = foodItems.length - 1; i >= 0; i--) {
+                const food = foodItems[i];
+                food.rotation.y += 0.05;
+                
+                // Collision check
+                const dist = car.position.distanceTo(food.position);
+                if (dist < 2.5) {
+                    scene.remove(food);
+                    foodItems.splice(i, 1);
+                    score += 10;
+                    fuel = Math.min(CONFIG.maxFuel, fuel + CONFIG.foodValue);
+                    document.getElementById('score').innerText = `SCORE: ${score}`;
+                    speed += 0.005;
+                } else if (food.position.z > car.position.z + 10) {
+                    scene.remove(food);
+                    foodItems.splice(i, 1);
+                }
+            }
+
+            // Cloud animation
+            clouds.forEach(c => {
+                if (c.position.z > car.position.z + 50) {
+                    c.position.z -= 400;
+                    c.position.x = Math.random() * 200 - 100;
+                }
+            });
+
+            // UI Update
+            document.getElementById('fuel-bar').style.width = `${fuel}%`;
+            if (fuel <= 0 && car.position.y <= 0.65) {
+                gameOver();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
