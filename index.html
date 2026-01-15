@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GitHub Image Uploader</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #status { margin-top: 20px; color: blue; }
+        #preview { margin-top: 20px; max-width: 300px; display: none; }
+    </style>
+</head>
+<body>
+
+    <h2>Upload Image to: ritampaine75-debug/Dff</h2>
+    
+    <input type="file" id="myFile" accept="image/*">
+    <button onclick="uploadToGithub()">Upload to GitHub</button>
+
+    <div id="status"></div>
+    <img id="preview" alt="Uploaded Image">
+
+    <script>
+        async function uploadToGithub() {
+            const fileInput = document.getElementById('myFile');
+            const statusDiv = document.getElementById('status');
+            const previewImg = document.getElementById('preview');
+
+            if (fileInput.files.length === 0) {
+                alert("Please select a file first!");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            statusDiv.innerText = "Uploading... please wait.";
+
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64Content = reader.result.split(',')[1];
+                const fileName = Date.now() + "_" + file.name; // Added timestamp to avoid duplicate names
+
+                const GITHUB_TOKEN = "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";
+                const USERNAME = "ritampaine75-debug";
+                const REPO = "Dff";
+                const url = `https://api.github.com/repos/${USERNAME}/${REPO}/contents/uploads/${fileName}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${GITHUB_TOKEN}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: `User uploaded: ${fileName}`,
+                            content: base64Content
+                        })
+                    });
+
+                    if (response.ok) {
+                        statusDiv.style.color = "green";
+                        statusDiv.innerText = "Success! File is now in your GitHub Repo.";
+                        
+                        // Show the image from GitHub
+                        const imageUrl = `https://raw.githubusercontent.com/${USERNAME}/${REPO}/main/uploads/${fileName}`;
+                        previewImg.src = imageUrl;
+                        previewImg.style.display = "block";
+                    } else {
+                        const errorData = await response.json();
+                        statusDiv.style.color = "red";
+                        statusDiv.innerText = "Error: " + errorData.message;
+                    }
+                } catch (err) {
+                    statusDiv.innerText = "Connection Error!";
+                }
+            };
+        }
+    </script>
+</body>
+</html>
