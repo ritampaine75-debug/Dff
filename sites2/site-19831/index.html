@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life & Its Infinite Diversity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #05070a;
+            --text: #e0e6ed;
+            --accent: #22c55e;
+            --accent-glow: rgba(34, 197, 94, 0.3);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #0a1a10 0%, #05070a 100%);
+        }
+
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: var(--accent-glow);
+            filter: blur(100px);
+            border-radius: 50%;
+            animation: move 20s infinite alternate;
+        }
+
+        @keyframes move {
+            from { transform: translate(-20%, -20%); }
+            to { transform: translate(20%, 20%); }
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        header {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(3rem, 10vw, 6rem);
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to bottom, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 4vw, 1.25rem);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.3rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Definition Section */
+        section {
+            padding: 8rem 0;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; gap: 2rem; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 2.5rem;
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .definition-tag {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--accent);
+            border-radius: 50px;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Diversity Grid */
+        .diversity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .diversity-item {
+            padding: 2rem;
+            background: var(--card-bg);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 16px 16px 0;
+        }
+
+        .diversity-item h3 {
+            margin-bottom: 0.75rem;
+            color: #fff;
+        }
+
+        /* Pillars of Life */
+        .pillars {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .pillar {
+            flex: 1 1 200px;
+            background: var(--border);
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            padding: 4rem 0;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            width: 30px;
+            height: 50px;
+            border: 2px solid var(--border);
+            border-radius: 20px;
+        }
+
+        .scroll-indicator::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 2px;
+            animation: scroll 2s infinite;
+        }
+
+        @keyframes scroll {
+            0% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, 20px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-glow">
+        <div class="blob"></div>
+    </div>
+
+    <header>
+        <span class="subtitle">The Biological Phenomenon</span>
+        <h1>Existence In<br>Motion</h1>
+        <div class="scroll-indicator"></div>
+    </header>
+
+    <div class="container">
+        <!-- Section 1: Definition -->
+        <section class="reveal">
+            <div class="grid-2">
+                <div>
+                    <span class="definition-tag">Definition</span>
+                    <h2>What is Life?</h2>
+                    <p>Life is a self-sustaining chemical system capable of Darwinian evolution. It is distinguished from inorganic matter by its capacity for metabolism, growth, response to stimuli, and reproduction.</p>
+                </div>
+                <div class="card">
+                    <p>In biological terms, life exists where entropy is locally reversed, creating complex structures that maintain a state far from thermodynamic equilibrium.</p>
+                </div>
+            </div>
+            
+            <div class="pillars">
+                <div class="pillar">Metabolism</div>
+                <div class="pillar">Homeostasis</div>
+                <div class="pillar">Reproduction</div>
+                <div class="pillar">Organization</div>
+                <div class="pillar">Evolution</div>
+                <div class="pillar">Adaptation</div>
+            </div>
+        </section>
+
+        <!-- Section 2: Diversity -->
+        <section class="reveal">
+            <span class="definition-tag">The Spectrum</span>
+            <h2>Infinite Diversity</h2>
+            <p style="max-width: 600px; margin-bottom: 2rem;">From the microscopic architecture of tardigrades to the sprawling consciousness of fungal networks, the diversity of life is the result of 3.7 billion years of iterative trial and error.</p>
+            
+            <div class="diversity-grid">
+                <div class="diversity-item">
+                    <h3>Genetic Variation</h3>
+                    <p>The subtle coding differences within DNA that allow species to adapt to shifting environments.</p>
+                </div>
+                <div class="diversity-item">
+                    <h3>Species Richness</h3>
+                    <p>The vast catalog of millions of distinct organisms, each occupying a unique ecological niche.</p>
+                </div>
+                <div class="diversity-item">
+                    <h3>Ecosystem Complexity</h3>
+                    <p>The intricate web of interactions between biotic communities and their physical surroundings.</p>
+                </div>
+                <div class="diversity-item">
+                    <h3>Functional Roles</h3>
+                    <p>The specialized tasks performed by life forms, from apex predators to humble decomposers.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: The Unity -->
+        <section class="reveal" style="text-align: center;">
+            <h2 style="font-style: italic;">"Somewhere, something incredible is waiting to be known."</h2>
+            <p>Life is not a collection of static things, but a single, continuous process of transformation.</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Biological Perspectives. Built with passion for the living world.</p>
+    </footer>
+
+    <script>
+        // Intersection Observer for Reveal Animations
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Parallax effect for the background blob
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            const blob = document.querySelector('.blob');
+            blob.style.transform = `translate(${x * 50}px, ${y * 50}px)`;
+        });
+
+        // Smooth scroll implementation
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
