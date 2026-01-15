@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hi | Simple Experience</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        main {
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 1.2s forwards;
+        }
+
+        .hero-text {
+            font-size: clamp(5rem, 20vw, 15rem);
+            font-weight: 700;
+            letter-spacing: -0.05em;
+            background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.1) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+            cursor: default;
+            transition: var(--transition);
+        }
+
+        .hero-text:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 0 30px rgba(56, 189, 248, 0.3));
+        }
+
+        .subtext {
+            font-weight: 300;
+            font-size: 1.2rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 1rem;
+            color: var(--accent-color);
+            opacity: 0.8;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .background-blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, rgba(15, 23, 42, 0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(50px);
+            animation: move 20s infinite alternate;
+        }
+
+        @keyframes move {
+            from { transform: translate(-20%, -20%); }
+            to { transform: translate(20%, 20%); }
+        }
+
+        @media (max-width: 768px) {
+            .subtext {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-blob"></div>
+    <main>
+        <h1 class="hero-text">hi.</h1>
+        <p class="subtext">Simplicity in Motion</p>
+    </main>
+
+    <script>
+        document.addEventListener('mousemove', (e) => {
+            const blob = document.querySelector('.background-blob');
+            const x = (e.clientX / window.innerWidth) * 40 - 20;
+            const y = (e.clientY / window.innerHeight) * 40 - 20;
+            blob.style.transform = `translate(${x}%, ${y}%)`;
+        });
+
+        // Small console Easter Egg
+        console.log("%c Hi there! %c Thanks for visiting.", "color: #38bdf8; font-size: 20px; font-weight: bold;", "color: #94a3b8;");
+    </script>
+</body>
+</html>
