@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Fly - Infinite Drive</title>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff00ff;
+            --neon-yellow: #f4ff00;
+            --bg-dark: #050505;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            max-height: 900px;
+            background: linear-gradient(180deg, #0a0a1a 0%, #000 100%);
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            pointer-events: none;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--neon-blue);
+        }
+
+        .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #aaa;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
+        #fuel-container {
+            width: 120px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            margin-top: 5px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #fuel-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-blue));
+            transition: width 0.1s linear;
+        }
+
+        #menu, #game-over {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px var(--neon-blue);
+            letter-spacing: 4px;
+        }
+
+        p {
+            color: #ccc;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            background: transparent;
+            color: white;
+            border: 2px solid var(--neon-blue);
+            cursor: pointer;
+            border-radius: 50px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+        }
+
+        button:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="canvas"></canvas>
+
+        <div id="ui-overlay">
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="label">Distance</div>
+                    <div id="score" class="value">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Fuel Core</div>
+                    <div id="fuel-container">
+                        <div id="fuel-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="menu">
+            <h1>NEON FLY</h1>
+            <p>Navigate the infinite skyway. Collect fuel.</p>
+            <button id="start-btn">Launch Engine</button>
+            <div style="margin-top: 40px; font-size: 14px; color: #888;">
+                DRAG OR USE ARROWS TO FLY
+            </div>
+        </div>
+
+        <div id="game-over" class="hidden">
+            <h1 style="color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink);">CRASHED</h1>
+            <p id="final-score-text">Distance Reached: 0m</p>
+            <button id="restart-btn">Reboot System</button>
+        </div>
+
+        <div id="instructions">AVOID DRONES • COLLECT ION CELLS</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const fuelBar = document.getElementById('fuel-bar');
+        const menu = document.getElementById('menu');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreText = document.getElementById('final-score-text');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        let width, height, scale;
+        let gameActive = false;
+        let score = 0;
+        let fuel = 100;
+        let speed = 5;
+        let frameCount = 0;
+
+        const car = {
+            x: 0,
+            y: 0,
+            w: 40,
+            h: 70,
+            targetX: 0,
+            targetY: 0,
+            tilt: 0
+        };
+
+        let obstacles = [];
+        let fuels = [];
+        let particles = [];
+        let roadLines = [];
+
+        function init() {
+            resize();
+            resetGame();
+            animate();
+        }
+
+        function resize() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+            scale = width / 400;
+            car.x = width / 2;
+            car.y = height * 0.8;
+            car.targetX = car.x;
+            car.targetY = car.y;
+        }
+
+        window.addEventListener('resize', resize);
+
+        function resetGame() {
+            score = 0;
+            fuel = 100;
+            speed = 5;
+            obstacles = [];
+            fuels = [];
+            particles = [];
+            roadLines = [];
+            for (let i = 0; i < 10; i++) {
+                roadLines.push({ y: (height / 10) * i });
+            }
+            scoreEl.innerText = "0";
+            fuelBar.style.width = "100%";
+        }
+
+        function spawnObstacle() {
+            const size = 40 + Math.random() * 40;
+            obstacles.push({
+                x: Math.random() * (width - size),
+                y: -size,
+                w: size,
+                h: size,
+                speed: speed * (0.5 + Math.random() * 0.5),
+                color: '#ff0055'
+            });
+        }
+
+        function spawnFuel() {
+            fuels.push({
+                x: 30 + Math.random() * (width - 60),
+                y: -50,
+                size: 25,
+                pulse: 0
+            });
+        }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    color: color
+                });
+            }
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            frameCount++;
+            score += 0.1;
+            scoreEl.innerText = Math.floor(score);
+            
+            fuel -= 0.12;
+            fuelBar.style.width = fuel + "%";
+            if (fuel <= 0) endGame();
+
+            // Increase speed slowly
+            speed += 0.001;
+
+            // Car movement smoothing
+            car.x += (car.targetX - car.x) * 0.15;
+            car.y += (car.targetY - car.y) * 0.15;
+            car.tilt = (car.targetX - car.x) * 0.05;
+
+            // Road Lines
+            roadLines.forEach(line => {
+                line.y += speed;
+                if (line.y > height) line.y = 0;
+            });
+
+            // Spawning
+            if (frameCount % 60 === 0) spawnObstacle();
+            if (frameCount % 150 === 0) spawnFuel();
+
+            // Particles update
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+
+            // Obstacles update
+            obstacles.forEach((obs, i) => {
+                obs.y += obs.speed + (speed * 0.5);
+                
+                // Collision
+                if (car.x - car.w/2 < obs.x + obs.w &&
+                    car.x + car.w/2 > obs.x &&
+                    car.y - car.h/2 < obs.y + obs.h &&
+                    car.y + car.h/2 > obs.y) {
+                    endGame();
+                }
+
+                if (obs.y > height) obstacles.splice(i, 1);
+            });
+
+            // Fuel update
+            fuels.forEach((f, i) => {
+                f.y += speed;
+                f.pulse += 0.1;
+
+                // Collision
+                const dx = car.x - f.x;
+                const dy = car.y - f.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 40) {
+                    fuel = Math.min(100, fuel + 25);
+                    createParticles(f.x, f.y, '#00f2ff');
+                    fuels.splice(i, 1);
+                }
+
+                if (f.y > height) fuels.splice(i, 1);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Road Grid
+            ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
+            ctx.lineWidth = 1;
+            roadLines.forEach(line => {
+                ctx.beginPath();
+                ctx.moveTo(0, line.y);
+                ctx.lineTo(width, line.y);
+                ctx.stroke();
+            });
+
+            const lanes = 5;
+            for(let i=0; i<=lanes; i++) {
+                let lx = (width / lanes) * i;
+                ctx.beginPath();
+                ctx.moveTo(lx, 0);
+                ctx.lineTo(lx, height);
+                ctx.stroke();
+            }
+
+            // Draw Particles
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 4, 4);
+            });
+            ctx.globalAlpha = 1;
+
+            // Draw Fuel
+            fuels.forEach(f => {
+                const s = f.size + Math.sin(f.pulse) * 5;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00f2ff';
+                ctx.fillStyle = '#00f2ff';
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, s/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Obstacles
+            obstacles.forEach(obs => {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = obs.color;
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                // Detail
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(obs.x + 5, obs.y + 5, obs.w - 10, obs.h - 10);
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Car (Flying Aesthetic)
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.tilt * 0.1);
+
+            // Engine Glow
+            const glow = 10 + Math.random() * 10;
+            ctx.shadowBlur = glow;
+            ctx.shadowColor = '#00f2ff';
+            
+            // Car Body
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(0, -car.h/2); // Tip
+            ctx.lineTo(car.w/2, car.h/2); // Right wing
+            ctx.lineTo(0, car.h/3); // Back notch
+            ctx.lineTo(-car.w/2, car.h/2); // Left wing
+            ctx.closePath();
+            ctx.fill();
+
+            // Cockpit
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(0, -car.h/10, car.w/4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Thrusters
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillRect(-car.w/4, car.h/2 - 5, 5, 10);
+            ctx.fillRect(car.w/4 - 5, car.h/2 - 5, 5, 10);
+
+            ctx.restore();
+            ctx.shadowBlur = 0;
+        }
+
+        function animate() {
+            update();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        function startGame() {
+            resetGame();
+            gameActive = true;
+            menu.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+        }
+
+        function endGame() {
+            gameActive = false;
+            gameOverScreen.classList.remove('hidden');
+            finalScoreText.innerText = `Distance Reached: ${Math.floor(score)}m`;
+            createParticles(car.x, car.y, '#ff0055');
+        }
+
+        // Input Handling
+        const handleMove = (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            car.targetX = clientX - rect.left;
+            car.targetY = clientY - rect.top;
+
+            // Boundaries
+            if (car.targetX < 30) car.targetX = 30;
+            if (car.targetX > width - 30) car.targetX = width - 30;
+            if (car.targetY < 50) car.targetY = 50;
+            if (car.targetY > height - 50) car.targetY = height - 50;
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove);
+
+        window.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
+            const step = 30;
+            if (e.key === 'ArrowLeft') car.targetX -= step;
+            if (e.key === 'ArrowRight') car.targetX += step;
+            if (e.key === 'ArrowUp') car.targetY -= step;
+            if (e.key === 'ArrowDown') car.targetY += step;
+        });
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Initial Start
+        init();
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Fly - Infinite Drive</title>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff00ff;
+            --neon-yellow: #f4ff00;
+            --bg-dark: #050505;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            max-height: 900px;
+            background: linear-gradient(180deg, #0a0a1a 0%, #000 100%);
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            pointer-events: none;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--neon-blue);
+        }
+
+        .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #aaa;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
+        #fuel-container {
+            width: 120px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            margin-top: 5px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #fuel-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-blue));
+            transition: width 0.1s linear;
+        }
+
+        #menu, #game-over {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px var(--neon-blue);
+            letter-spacing: 4px;
+        }
+
+        p {
+            color: #ccc;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            background: transparent;
+            color: white;
+            border: 2px solid var(--neon-blue);
+            cursor: pointer;
+            border-radius: 50px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+        }
+
+        button:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="canvas"></canvas>
+
+        <div id="ui-overlay">
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="label">Distance</div>
+                    <div id="score" class="value">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Fuel Core</div>
+                    <div id="fuel-container">
+                        <div id="fuel-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="menu">
+            <h1>NEON FLY</h1>
+            <p>Navigate the infinite skyway. Collect fuel.</p>
+            <button id="start-btn">Launch Engine</button>
+            <div style="margin-top: 40px; font-size: 14px; color: #888;">
+                DRAG OR USE ARROWS TO FLY
+            </div>
+        </div>
+
+        <div id="game-over" class="hidden">
+            <h1 style="color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink);">CRASHED</h1>
+            <p id="final-score-text">Distance Reached: 0m</p>
+            <button id="restart-btn">Reboot System</button>
+        </div>
+
+        <div id="instructions">AVOID DRONES • COLLECT ION CELLS</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const fuelBar = document.getElementById('fuel-bar');
+        const menu = document.getElementById('menu');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreText = document.getElementById('final-score-text');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        let width, height, scale;
+        let gameActive = false;
+        let score = 0;
+        let fuel = 100;
+        let speed = 5;
+        let frameCount = 0;
+
+        const car = {
+            x: 0,
+            y: 0,
+            w: 40,
+            h: 70,
+            targetX: 0,
+            targetY: 0,
+            tilt: 0
+        };
+
+        let obstacles = [];
+        let fuels = [];
+        let particles = [];
+        let roadLines = [];
+
+        function init() {
+            resize();
+            resetGame();
+            animate();
+        }
+
+        function resize() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+            scale = width / 400;
+            car.x = width / 2;
+            car.y = height * 0.8;
+            car.targetX = car.x;
+            car.targetY = car.y;
+        }
+
+        window.addEventListener('resize', resize);
+
+        function resetGame() {
+            score = 0;
+            fuel = 100;
+            speed = 5;
+            obstacles = [];
+            fuels = [];
+            particles = [];
+            roadLines = [];
+            for (let i = 0; i < 10; i++) {
+                roadLines.push({ y: (height / 10) * i });
+            }
+            scoreEl.innerText = "0";
+            fuelBar.style.width = "100%";
+        }
+
+        function spawnObstacle() {
+            const size = 40 + Math.random() * 40;
+            obstacles.push({
+                x: Math.random() * (width - size),
+                y: -size,
+                w: size,
+                h: size,
+                speed: speed * (0.5 + Math.random() * 0.5),
+                color: '#ff0055'
+            });
+        }
+
+        function spawnFuel() {
+            fuels.push({
+                x: 30 + Math.random() * (width - 60),
+                y: -50,
+                size: 25,
+                pulse: 0
+            });
+        }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    color: color
+                });
+            }
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            frameCount++;
+            score += 0.1;
+            scoreEl.innerText = Math.floor(score);
+            
+            fuel -= 0.12;
+            fuelBar.style.width = fuel + "%";
+            if (fuel <= 0) endGame();
+
+            // Increase speed slowly
+            speed += 0.001;
+
+            // Car movement smoothing
+            car.x += (car.targetX - car.x) * 0.15;
+            car.y += (car.targetY - car.y) * 0.15;
+            car.tilt = (car.targetX - car.x) * 0.05;
+
+            // Road Lines
+            roadLines.forEach(line => {
+                line.y += speed;
+                if (line.y > height) line.y = 0;
+            });
+
+            // Spawning
+            if (frameCount % 60 === 0) spawnObstacle();
+            if (frameCount % 150 === 0) spawnFuel();
+
+            // Particles update
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+
+            // Obstacles update
+            obstacles.forEach((obs, i) => {
+                obs.y += obs.speed + (speed * 0.5);
+                
+                // Collision
+                if (car.x - car.w/2 < obs.x + obs.w &&
+                    car.x + car.w/2 > obs.x &&
+                    car.y - car.h/2 < obs.y + obs.h &&
+                    car.y + car.h/2 > obs.y) {
+                    endGame();
+                }
+
+                if (obs.y > height) obstacles.splice(i, 1);
+            });
+
+            // Fuel update
+            fuels.forEach((f, i) => {
+                f.y += speed;
+                f.pulse += 0.1;
+
+                // Collision
+                const dx = car.x - f.x;
+                const dy = car.y - f.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 40) {
+                    fuel = Math.min(100, fuel + 25);
+                    createParticles(f.x, f.y, '#00f2ff');
+                    fuels.splice(i, 1);
+                }
+
+                if (f.y > height) fuels.splice(i, 1);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Road Grid
+            ctx.strokeStyle = 'rgba(0, 242, 255, 0.1)';
+            ctx.lineWidth = 1;
+            roadLines.forEach(line => {
+                ctx.beginPath();
+                ctx.moveTo(0, line.y);
+                ctx.lineTo(width, line.y);
+                ctx.stroke();
+            });
+
+            const lanes = 5;
+            for(let i=0; i<=lanes; i++) {
+                let lx = (width / lanes) * i;
+                ctx.beginPath();
+                ctx.moveTo(lx, 0);
+                ctx.lineTo(lx, height);
+                ctx.stroke();
+            }
+
+            // Draw Particles
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 4, 4);
+            });
+            ctx.globalAlpha = 1;
+
+            // Draw Fuel
+            fuels.forEach(f => {
+                const s = f.size + Math.sin(f.pulse) * 5;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00f2ff';
+                ctx.fillStyle = '#00f2ff';
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, s/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Obstacles
+            obstacles.forEach(obs => {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = obs.color;
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                // Detail
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(obs.x + 5, obs.y + 5, obs.w - 10, obs.h - 10);
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Car (Flying Aesthetic)
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.tilt * 0.1);
+
+            // Engine Glow
+            const glow = 10 + Math.random() * 10;
+            ctx.shadowBlur = glow;
+            ctx.shadowColor = '#00f2ff';
+            
+            // Car Body
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(0, -car.h/2); // Tip
+            ctx.lineTo(car.w/2, car.h/2); // Right wing
+            ctx.lineTo(0, car.h/3); // Back notch
+            ctx.lineTo(-car.w/2, car.h/2); // Left wing
+            ctx.closePath();
+            ctx.fill();
+
+            // Cockpit
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(0, -car.h/10, car.w/4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Thrusters
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillRect(-car.w/4, car.h/2 - 5, 5, 10);
+            ctx.fillRect(car.w/4 - 5, car.h/2 - 5, 5, 10);
+
+            ctx.restore();
+            ctx.shadowBlur = 0;
+        }
+
+        function animate() {
+            update();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        function startGame() {
+            resetGame();
+            gameActive = true;
+            menu.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+        }
+
+        function endGame() {
+            gameActive = false;
+            gameOverScreen.classList.remove('hidden');
+            finalScoreText.innerText = `Distance Reached: ${Math.floor(score)}m`;
+            createParticles(car.x, car.y, '#ff0055');
+        }
+
+        // Input Handling
+        const handleMove = (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            car.targetX = clientX - rect.left;
+            car.targetY = clientY - rect.top;
+
+            // Boundaries
+            if (car.targetX < 30) car.targetX = 30;
+            if (car.targetX > width - 30) car.targetX = width - 30;
+            if (car.targetY < 50) car.targetY = 50;
+            if (car.targetY > height - 50) car.targetY = height - 50;
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove);
+
+        window.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
+            const step = 30;
+            if (e.key === 'ArrowLeft') car.targetX -= step;
+            if (e.key === 'ArrowRight') car.targetX += step;
+            if (e.key === 'ArrowUp') car.targetY -= step;
+            if (e.key === 'ArrowDown') car.targetY += step;
+        });
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Initial Start
+        init();
+    </script>
+</body>
+</html>
