@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Calculator</title>
+    <style>
+        :root {
+            --bg-color: #0d1117; /* Deep dark background */
+            --btn-color: #262626; /* Dark grey buttons */
+            --btn-active: #3a3a3a;
+            --orange: #ff9f0a;
+            --orange-active: #e68d05;
+            --text-white: #ffffff;
+            --text-secondary: #a5a5a5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #000;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .phone-frame {
+            width: 100%;
+            height: 100%;
+            max-width: 450px; /* Limits width on desktop to look like mobile */
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Fake Status Bar */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            color: var(--text-white);
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+        .status-icons span { margin-left: 5px; }
+
+        /* Display Screen */
+        .screen {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: flex-end;
+            padding: 20px 25px;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+
+        .equation {
+            color: var(--text-white);
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-align: right;
+            font-weight: 300;
+            opacity: 0.9;
+            min-height: 40px;
+        }
+
+        .result {
+            color: var(--text-secondary);
+            font-size: 2.5rem;
+            font-weight: 400;
+            text-align: right;
+            min-height: 50px;
+        }
+        
+        /* When result is final, we swap styles roughly via JS, or keep this hierarchy */
+
+        /* Keypad */
+        .keypad {
+            padding: 20px;
+            padding-bottom: 40px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        button {
+            background-color: var(--btn-color);
+            border: none;
+            border-radius: 50%;
+            color: var(--text-white);
+            font-size: 1.6rem;
+            cursor: pointer;
+            aspect-ratio: 1; /* Keeps buttons perfectly round */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.1s;
+            user-select: none;
+        }
+
+        button:active {
+            background-color: var(--btn-active);
+        }
+
+        /* Specific Button Styles */
+        .btn-orange {
+            background-color: var(--orange);
+            font-size: 2rem;
+        }
+        .btn-orange:active {
+            background-color: var(--orange-active);
+        }
+
+        .btn-op {
+            background-color: #1f1f1f; /* Slightly darker for operations column if desired, matching image */
+            font-size: 1.8rem;
+        }
+
+        .btn-secondary {
+            color: var(--text-white);
+            font-size: 1.4rem;
+        }
+
+        /* Icons */
+        .icon {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+
+        /* Layout Tweaks for the Result Logic matching image */
+        .display-active .equation {
+            color: var(--text-white);
+            font-size: 2rem;
+        }
+        .display-active .result {
+            color: var(--text-secondary);
+            font-size: 3rem; 
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <!-- Mock Status Bar -->
+        <div class="status-bar">
+            <div id="clock">4:26</div>
+            <div class="status-icons">
+                <span>VoLTE</span>
+                <span>5G</span>
+                <span>🔋 40%</span>
+            </div>
+        </div>
+
+        <!-- Calculator Display -->
+        <div class="screen display-active">
+            <div class="equation" id="inputDisplay">0</div>
+            <div class="result" id="resultDisplay"></div>
+        </div>
+
+        <!-- Keypad -->
+        <div class="keypad">
+            <button class="btn-secondary" onclick="clearDisplay()">AC</button>
+            <button class="btn-secondary" onclick="appendOperator('%')">%</button>
+            <button class="btn-secondary" onclick="deleteLast()">
+                <!-- Backspace SVG -->
+                <svg class="icon" viewBox="0 0 24 24">
+                    <path d="M22,3H7C6.31,3 5.77,3.35 5.6,4.03L2,12L5.6,19.97C5.77,20.66 6.31,21 7,21H22A2,2 0 0,0 24,19V5A2,2 0 0,0 22,3M19,15.59L17.59,17L14,13.41L10.41,17L9,15.59L12.59,12L9,8.41L10.41,7L14,10.59L17.59,7L19,8.41L15.41,12L19,15.59Z" />
+                </svg>
+            </button>
+            <button class="btn-op" onclick="appendOperator('/')">÷</button>
+
+            <button onclick="appendNumber('7')">7</button>
+            <button onclick="appendNumber('8')">8</button>
+            <button onclick="appendNumber('9')">9</button>
+            <button class="btn-op" onclick="appendOperator('*')">×</button>
+
+            <button onclick="appendNumber('4')">4</button>
+            <button onclick="appendNumber('5')">5</button>
+            <button onclick="appendNumber('6')">6</button>
+            <button class="btn-op" onclick="appendOperator('-')">−</button>
+
+            <button onclick="appendNumber('1')">1</button>
+            <button onclick="appendNumber('2')">2</button>
+            <button onclick="appendNumber('3')">3</button>
+            <button class="btn-op" onclick="appendOperator('+')">+</button>
+
+            <button onclick="appendNumber('00')">00</button>
+            <button onclick="appendNumber('0')">0</button>
+            <button onclick="appendDot()">.</button>
+            <button class="btn-orange" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+    <script>
+        // Update Clock
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            if (minutes < 10) minutes = '0' + minutes;
+            document.getElementById('clock').innerText = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Calculator Logic
+        let currentInput = "0";
+        let lastIsResult = false; // Flag to check if we just hit equals
+
+        const inputDisplay = document.getElementById('inputDisplay');
+        const resultDisplay = document.getElementById('resultDisplay');
+
+        function formatNumber(numStr) {
+            // Split into integer and decimal parts
+            let parts = numStr.split(".");
+            // Format integer part with commas
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            return parts.join(".");
+        }
+
+        function getFormattedExpression(expression) {
+            // This function creates the visual string with commas (e.g., 34,000 + 200)
+            // It splits by operators to format individual numbers
+            return expression.replace(/\d+/g, (match) => formatNumber(match));
+        }
+
+        function updateScreen() {
+            // Update the main equation area
+            let visualExpression = getFormattedExpression(currentInput)
+                .replace(/\//g, '÷')
+                .replace(/\*/g, '×');
+            
+            inputDisplay.innerText = visualExpression;
+            
+            // Try to calculate the running total for the result area
+            try {
+                // Prepare string for evaluation (sanitize)
+                let evalString = currentInput.replace(/×/g, "*").replace(/÷/g, "/");
+                
+                // Only evaluate if it ends in a number or closing symbol, and isn't just a single number
+                if (/[\d.]$/.test(evalString) && /[+\-*/]/.test(evalString)) {
+                    // Safe evaluation
+                    let result = Function('"use strict";return (' + evalString + ')')();
+                    // Handle rounding errors roughly
+                    result = Math.round(result * 100000000) / 100000000;
+                    resultDisplay.innerText = formatNumber(result.toString());
+                } else if (!/[+\-*/]/.test(evalString)) {
+                    // If it's just a number, clear the result area (mimicking the screenshot style where result appears on calc)
+                    // Or keep it empty until an operator is added.
+                    resultDisplay.innerText = "";
+                }
+            } catch (e) {
+                // Invalid expression momentarily (e.g. "34+")
+                // Do nothing
+            }
+        }
+
+        function appendNumber(num) {
+            if (lastIsResult) {
+                currentInput = "";
+                lastIsResult = false;
+                resultDisplay.innerText = "";
+            }
+            if (currentInput === "0" && num !== ".") {
+                currentInput = num;
+            } else {
+                currentInput += num;
+            }
+            updateScreen();
+        }
+
+        function appendDot() {
+            if (lastIsResult) {
+                currentInput = "0";
+                lastIsResult = false;
+            }
+            // Check if the last number segment already has a dot
+            const parts = currentInput.split(/[+\-*/]/);
+            const currentNum = parts[parts.length - 1];
+            if (currentNum.includes('.')) return;
+            
+            currentInput += '.';
+            updateScreen();
+        }
+
+        function appendOperator(op) {
+            lastIsResult = false;
+            const lastChar = currentInput.slice(-1);
+            
+            // If input is empty or ends with an operator, replace the operator
+            if (['+', '-', '*', '/', '%'].includes(lastChar)) {
+                currentInput = currentInput.slice(0, -1) + op;
+            } else {
+                currentInput += op;
+            }
+            updateScreen();
+        }
+
+        function deleteLast() {
+            if (lastIsResult) {
+                currentInput = "0";
+                resultDisplay.innerText = "";
+                lastIsResult = false;
+            } else {
+                currentInput = currentInput.slice(0, -1);
+                if (currentInput === "") currentInput = "0";
+            }
+            updateScreen();
+        }
+
+        function clearDisplay() {
+            currentInput = "0";
+            resultDisplay.innerText = "";
+            lastIsResult = false;
+            updateScreen();
+        }
+
+        function calculate() {
+            try {
+                let evalString = currentInput;
+                // Evaluate
+                let result = Function('"use strict";return (' + evalString + ')')();
+                
+                // Format logic: In the screenshot, the equation stays, result is emphasized.
+                // But typically pressing = moves result to main.
+                // Let's move result to main input for continued calculation.
+                
+                resultDisplay.innerText = formatNumber(result.toString());
+                // Make the result the new input for next steps?
+                // For this specific UI clone, we will just set the flag.
+                
+                // Ideally in this UI style:
+                // Input stays at top, Result at bottom (which is already happening dynamically).
+                // But to allow further math on the result:
+                currentInput = result.toString();
+                inputDisplay.innerText = getFormattedExpression(currentInput); 
+                resultDisplay.innerText = formatNumber(result.toString());
+                lastIsResult = true;
+                
+            } catch (e) {
+                resultDisplay.innerText = "Error";
+            }
+        }
+    </script>
+</body>
+</html>
