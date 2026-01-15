@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Starfire Vanguard</title>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --secondary: #ff0055;
+            --bg: #05050a;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: white;
+            user-select: none;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 0 50px rgba(0, 242, 255, 0.1);
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        #score-board {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--primary);
+        }
+        #menu {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.85);
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            background: linear-gradient(to bottom, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(0, 242, 255, 0.5));
+        }
+        p {
+            margin-bottom: 2rem;
+            color: #aaa;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.2s;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+        }
+        button:hover {
+            background: var(--primary);
+            color: black;
+            box-shadow: 0 0 20px var(--primary);
+        }
+        .hidden {
+            display: none !important;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">
+        <div id="score-board">SCORE: 0</div>
+    </div>
+
+    <div id="menu">
+        <h1>STARFIRE</h1>
+        <p>DRAG OR USE ARROWS TO MOVE & SHOOT</p>
+        <button id="start-btn">Launch</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score-board');
+    const menu = document.getElementById('menu');
+    const startBtn = document.getElementById('start-btn');
+
+    let width, height, player, enemies, projectiles, particles, score, gameActive, spawnTimer;
+    let keys = {};
+
+    class Player {
+        constructor() {
+            this.w = 40;
+            this.h = 45;
+            this.x = width / 2;
+            this.y = height - 80;
+            this.speed = 7;
+            this.color = '#00f2ff';
+        }
+
+        draw() {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = this.color;
+            ctx.fillStyle = this.color;
+            
+            // Jet Shape
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y - this.h/2);
+            ctx.lineTo(this.x - this.w/2, this.y + this.h/2);
+            ctx.lineTo(this.x, this.y + this.h/3);
+            ctx.lineTo(this.x + this.w/2, this.y + this.h/2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Cockpit
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Thruster glow
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillRect(this.x - 2, this.y + this.h/2, 4, Math.random() * 10);
+            
+            ctx.shadowBlur = 0;
+        }
+
+        update() {
+            if (keys['ArrowLeft'] || keys['a']) this.x -= this.speed;
+            if (keys['ArrowRight'] || keys['d']) this.x += this.speed;
+            if (keys['ArrowUp'] || keys['w']) this.y -= this.speed;
+            if (keys['ArrowDown'] || keys['s']) this.y += this.speed;
+
+            // Constrain
+            this.x = Math.max(this.w/2, Math.min(width - this.w/2, this.x));
+            this.y = Math.max(this.h/2, Math.min(height - this.h/2, this.y));
+        }
+    }
+
+    class Projectile {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.r = 3;
+            this.speed = 12;
+        }
+        draw() {
+            ctx.fillStyle = '#fff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00f2ff';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        update() {
+            this.y -= this.speed;
+        }
+    }
+
+    class Enemy {
+        constructor() {
+            this.w = 50;
+            this.h = 30;
+            this.x = Math.random() * (width - this.w) + this.w/2;
+            this.y = -50;
+            this.speed = 2 + (score / 1000);
+            this.hp = 1;
+            this.hue = Math.random() * 60 + 300; // Purple/Pink
+        }
+        draw() {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
+            ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+            
+            // UFO Shape
+            ctx.beginPath();
+            ctx.ellipse(this.x, this.y, this.w/2, this.h/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Dome
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y - 5, 10, 0, Math.PI, true);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        update() {
+            this.y += this.speed;
+            this.x += Math.sin(this.y / 30) * 2;
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.vx = (Math.random() - 0.5) * 10;
+            this.vy = (Math.random() - 0.5) * 10;
+            this.alpha = 1;
+            this.life = 0.95;
+        }
+        draw() {
+            ctx.globalAlpha = this.alpha;
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 3, 3);
+            ctx.globalAlpha = 1;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.alpha *= this.life;
+        }
+    }
+
+    function init() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        player = new Player();
+        enemies = [];
+        projectiles = [];
+        particles = [];
+        score = 0;
+        gameActive = false;
+        spawnTimer = 0;
+    }
+
+    function spawnEnemy() {
+        if (Math.random() < 0.03 + (score/20000)) {
+            enemies.push(new Enemy());
+        }
+    }
+
+    function checkCollision(circle1, circle2) {
+        const dx = circle1.x - circle2.x;
+        const dy = circle1.y - circle2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance < (circle1.r || 15) + (circle2.r || 15);
+    }
+
+    function explode(x, y, color) {
+        for(let i=0; i<15; i++) {
+            particles.push(new Particle(x, y, color));
+        }
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        player.update();
+        
+        // Auto shoot
+        if (Date.now() % 150 < 20) {
+            projectiles.push(new Projectile(player.x, player.y - 20));
+        }
+
+        spawnEnemy();
+
+        projectiles.forEach((p, pi) => {
+            p.update();
+            if (p.y < 0) projectiles.splice(pi, 1);
+        });
+
+        enemies.forEach((e, ei) => {
+            e.update();
+            
+            // Collision with player
+            if (checkCollision(player, e)) {
+                gameOver();
+            }
+
+            // Collision with bullets
+            projectiles.forEach((p, pi) => {
+                if (checkCollision(p, e)) {
+                    score += 10;
+                    scoreElement.innerText = `SCORE: ${score}`;
+                    explode(e.x, e.y, `hsl(${e.hue}, 100%, 50%)`);
+                    enemies.splice(ei, 1);
+                    projectiles.splice(pi, 1);
+                }
+            });
+
+            if (e.y > height + 50) enemies.splice(ei, 1);
+        });
+
+        particles.forEach((p, pi) => {
+            p.update();
+            if (p.alpha < 0.1) particles.splice(pi, 1);
+        });
+    }
+
+    function draw() {
+        ctx.fillStyle = 'rgba(5, 5, 10, 0.2)'; // Motion blur
+        ctx.fillRect(0, 0, width, height);
+
+        // Stars
+        ctx.fillStyle = '#fff';
+        for(let i=0; i<5; i++) {
+            ctx.fillRect(Math.random() * width, Math.random() * height, 1, 1);
+        }
+
+        particles.forEach(p => p.draw());
+        projectiles.forEach(p => p.draw());
+        enemies.forEach(e => e.draw());
+        player.draw();
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameOver() {
+        gameActive = false;
+        menu.classList.remove('hidden');
+        document.querySelector('h1').innerText = "SYSTEM FAILURE";
+        document.querySelector('p').innerText = `FINAL SCORE: ${score}`;
+        startBtn.innerText = "REBOOT";
+    }
+
+    // Controls
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    canvas.addEventListener('touchmove', e => {
+        if (!gameActive) return;
+        const touch = e.touches[0];
+        player.x = touch.clientX;
+        player.y = touch.clientY - 50;
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('mousemove', e => {
+        if (!gameActive) return;
+        player.x = e.clientX;
+        player.y = e.clientY;
+    });
+
+    startBtn.addEventListener('click', () => {
+        init();
+        gameActive = true;
+        menu.classList.add('hidden');
+    });
+
+    window.addEventListener('resize', init);
+
+    init();
+    gameLoop();
+</script>
+</body>
+</html>
