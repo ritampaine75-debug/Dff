@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Inspiration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --text-main: #1f2937;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            perspective: 1000px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .icon {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            opacity: 0.9;
+            letter-spacing: -0.025em;
+        }
+
+        #message-box {
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .message {
+            font-size: 1.25rem;
+            line-height: 1.6;
+            font-weight: 300;
+            color: #4b5563;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            background: #4f46e5;
+            transform: scale(1.02);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 30px 20px;
+            }
+            h1 {
+                font-size: 1.25rem;
+            }
+            .message {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <span class="icon">✨</span>
+            <h1>Daily Reminder</h1>
+            <div id="message-box">
+                <p id="message-text" class="message">Click the button for a piece of wisdom.</p>
+            </div>
+            <button class="btn" onclick="newMessage()">Next Message</button>
+        </div>
+    </div>
+
+    <script>
+        const messages = [
+            "Your potential is endless. Go do what you were created to do.",
+            "The best way to predict the future is to create it.",
+            "You are exactly where you need to be to get where you're going.",
+            "Small progress is still progress. Keep moving forward.",
+            "Believe you can and you're halfway there.",
+            "Don't wait for opportunity. Create it.",
+            "Everything you've ever wanted is on the other side of fear.",
+            "Your only limit is your mind.",
+            "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+            "Be the energy you want to attract."
+        ];
+
+        let lastIndex = -1;
+
+        function newMessage() {
+            const textElement = document.getElementById('message-text');
+            
+            // Add fade out effect
+            textElement.classList.add('fade-out');
+
+            setTimeout(() => {
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * messages.length);
+                } while (randomIndex === lastIndex);
+                
+                lastIndex = randomIndex;
+                textElement.innerText = messages[randomIndex];
+                
+                // Remove fade out to trigger fade in
+                textElement.classList.remove('fade-out');
+            }, 400);
+        }
+
+        // Initial message on load
+        window.onload = newMessage;
+    </script>
+</body>
+</html>
