@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlobalTime - World Clock Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide-icons/0.321.0/lucide.min.js"></script>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent: #60a5fa;
+            --border: #334155;
+            --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent);
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+        }
+
+        .search-container {
+            position: relative;
+            flex: 1;
+            min-width: 280px;
+        }
+
+        #citySearch {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            margin-top: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: var(--shadow);
+        }
+
+        .suggestion-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            position: relative;
+            cursor: grab;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .card:active { cursor: grabbing; }
+
+        .card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .city-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .timezone-name {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .time-display {
+            font-size: 2.5rem;
+            font-weight: 300;
+            letter-spacing: -1px;
+        }
+
+        .date-display {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .remove-btn:hover { color: #ef4444; }
+
+        /* Analog Clock Styles */
+        .analog-clock {
+            width: 80px;
+            height: 80px;
+            border: 2px solid var(--text);
+            border-radius: 50%;
+            position: relative;
+            margin-left: auto;
+        }
+
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom;
+            background: var(--text);
+            border-radius: 4px;
+        }
+
+        .hour-hand { width: 3px; height: 20px; z-index: 3; }
+        .min-hand { width: 2px; height: 30px; z-index: 2; }
+        .sec-hand { width: 1px; height: 35px; background: var(--accent); z-index: 1; }
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            z-index: 4;
+        }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 640px) {
+            .grid { grid-template-columns: 1fr; }
+            .time-display { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i data-lucide="globe"></i>
+                GlobalTime
+            </div>
+            <div class="controls">
+                <button class="btn" id="themeToggle" title="Toggle Dark/Light Mode">
+                    <i data-lucide="moon"></i>
+                </button>
+                <button class="btn" id="viewToggle" title="Toggle Analog/Digital">
+                    <i data-lucide="clock"></i>
+                </button>
+                <div class="search-container">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="citySearch" placeholder="Add a city or timezone...">
+                    <div id="suggestions" class="suggestions"></div>
+                </div>
+            </div>
+        </header>
+
+        <div id="clockGrid" class="grid">
+            <!-- Cards will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let state = {
+            cities: JSON.parse(localStorage.getItem('savedCities')) || [
+                { id: '1', name: 'London', zone: 'Europe/London' },
+                { id: '2', name: 'New York', zone: 'America/New_York' },
+                { id: '3', name: 'Tokyo', zone: 'Asia/Tokyo' }
+            ],
+            isAnalog: localStorage.getItem('isAnalog') === 'true',
+            theme: localStorage.getItem('theme') || 'dark'
+        };
+
+        const allTimezones = Intl.supportedValuesOf('timeZone');
+
+        // Initialization
+        function init() {
+            lucide.createIcons();
+            document.body.setAttribute('data-theme', state.theme);
+            updateThemeIcon();
+            renderCards();
+            setupEventListeners();
+            setInterval(updateTimes, 1000);
+        }
+
+        function setupEventListeners() {
+            // Search logic
+            const searchInput = document.getElementById('citySearch');
+            const suggestions = document.getElementById('suggestions');
+
+            searchInput.addEventListener('input', (e) => {
+                const val = e.target.value.toLowerCase();
+                if (val.length < 2) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+
+                const filtered = allTimezones
+                    .filter(tz => tz.toLowerCase().includes(val))
+                    .slice(0, 8);
+
+                suggestions.innerHTML = filtered.map(tz => `
+                    <div class="suggestion-item" onclick="addCity('${tz}')">
+                        ${tz.replace(/_/g, ' ')}
+                    </div>
+                `).join('');
+                suggestions.style.display = filtered.length ? 'block' : 'none';
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-container')) {
+                    suggestions.style.display = 'none';
+                }
+            });
+
+            // Toggles
+            document.getElementById('themeToggle').addEventListener('click', () => {
+                state.theme = state.theme === 'light' ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', state.theme);
+                localStorage.setItem('theme', state.theme);
+                updateThemeIcon();
+            });
+
+            document.getElementById('viewToggle').addEventListener('click', () => {
+                state.isAnalog = !state.isAnalog;
+                localStorage.setItem('isAnalog', state.isAnalog);
+                renderCards();
+            });
+
+            // Drag and Drop
+            const grid = document.getElementById('clockGrid');
+            grid.addEventListener('dragstart', e => {
+                if (e.target.classList.contains('card')) {
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            grid.addEventListener('dragend', e => {
+                if (e.target.classList.contains('card')) {
+                    e.target.classList.remove('dragging');
+                    saveOrder();
+                }
+            });
+
+            grid.addEventListener('dragover', e => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(grid, e.clientY);
+                const dragging = document.querySelector('.dragging');
+                if (afterElement == null) {
+                    grid.appendChild(dragging);
+                } else {
+                    grid.insertBefore(dragging, afterElement);
+                }
+            });
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function saveOrder() {
+            const newCities = [];
+            document.querySelectorAll('.card').forEach(card => {
+                const zone = card.dataset.zone;
+                const name = card.dataset.name;
+                newCities.push({ id: Date.now() + Math.random().toString(), name, zone });
+            });
+            state.cities = newCities;
+            localStorage.setItem('savedCities', JSON.stringify(state.cities));
+        }
+
+        function addCity(zone) {
+            const name = zone.split('/').pop().replace(/_/g, ' ');
+            state.cities.push({ id: Date.now().toString(), name, zone });
+            localStorage.setItem('savedCities', JSON.stringify(state.cities));
+            document.getElementById('citySearch').value = '';
+            document.getElementById('suggestions').style.display = 'none';
+            renderCards();
+        }
+
+        function removeCity(id) {
+            state.cities = state.cities.filter(c => c.id !== id);
+            localStorage.setItem('savedCities', JSON.stringify(state.cities));
+            renderCards();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.querySelector('#themeToggle i');
+            icon.setAttribute('data-lucide', state.theme === 'light' ? 'moon' : 'sun');
+            lucide.createIcons();
+        }
+
+        function renderCards() {
+            const grid = document.getElementById('clockGrid');
+            grid.innerHTML = state.cities.map(city => `
+                <div class="card" draggable="true" data-zone="${city.zone}" data-name="${city.name}" data-id="${city.id}">
+                    <div class="card-header">
+                        <div>
+                            <div class="city-name">${city.name}</div>
+                            <div class="timezone-name">${city.zone}</div>
+                        </div>
+                        <button class="remove-btn" onclick="removeCity('${city.id}')">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="time-container ${state.isAnalog ? 'hidden' : ''}">
+                            <div class="time-display" data-time-zone="${city.zone}">--:--:--</div>
+                            <div class="date-display" data-date-zone="${city.zone}">Loading...</div>
+                        </div>
+                        
+                        <div class="analog-clock ${!state.isAnalog ? 'hidden' : ''}" data-analog-zone="${city.zone}">
+                            <div class="hand hour-hand"></div>
+                            <div class="hand min-hand"></div>
+                            <div class="hand sec-hand"></div>
+                            <div class="center-dot"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+            updateTimes();
+        }
+
+        function updateTimes() {
+            const now = new Date();
+            
+            // Update Digital Clocks
+            document.querySelectorAll('.time-display').forEach(el => {
+                const zone = el.dataset.timeZone;
+                el.innerText = new Intl.DateTimeFormat('en-US', {
+                    timeZone: zone,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).format(now);
+            });
+
+            document.querySelectorAll('.date-display').forEach(el => {
+                const zone = el.dataset.dateZone;
+                el.innerText = new Intl.DateTimeFormat('en-US', {
+                    timeZone: zone,
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                }).format(now);
+            });
+
+            // Update Analog Clocks
+            document.querySelectorAll('.analog-clock').forEach(clock => {
+                const zone = clock.dataset.analogZone;
+                const timeInZone = new Date(now.toLocaleString('en-US', { timeZone: zone }));
+                
+                const secs = timeInZone.getSeconds();
+                const mins = timeInZone.getMinutes();
+                const hours = timeInZone.getHours();
+
+                const secDeg = (secs / 60) * 360;
+                const minDeg = ((mins + secs/60) / 60) * 360;
+                const hourDeg = ((hours % 12 + mins/60) / 12) * 360;
+
+                clock.querySelector('.sec-hand').style.transform = `translateX(-50%) rotate(${secDeg}deg)`;
+                clock.querySelector('.min-hand').style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
+                clock.querySelector('.hour-hand').style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+            });
+        }
+
+        // Handle Offline State
+        window.addEventListener('online', () => console.log('Syncing...'));
+        window.addEventListener('offline', () => console.log('Running in cached mode'));
+
+        init();
+    </script>
+</body>
+</html>
