@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dimensional Analysis Educator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Hind+Siliguri:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Hind Siliguri', sans-serif; }
+        .dimension-box { transition: all 0.3s ease; }
+        .dimension-box:hover { transform: translateY(-2px); }
+        [data-lang="bn"] { display: none; }
+        .lang-bn [data-lang="en"] { display: none; }
+        .lang-bn [data-lang="bn"] { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 transition-colors duration-300">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-indigo-900">DimEdu</span>
+                </div>
+                <button id="langToggle" class="flex items-center space-x-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-full font-semibold transition-all">
+                    <span data-lang="en">Switch to বাংলা</span>
+                    <span data-lang="bn">English-এ পরিবর্তন করুন</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="max-w-6xl mx-auto px-4 py-12 sm:py-20 text-center">
+        <h1 class="text-4xl sm:text-6xl font-extrabold text-slate-900 mb-6">
+            <span data-lang="en">Master Dimensional Analysis</span>
+            <span data-lang="bn">মাত্রীয় সংকেত শিখুন</span>
+        </h1>
+        <p class="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            <span data-lang="en">Explore the fundamental building blocks of physics. Learn how physical quantities are represented by [M], [L], [T], and [θ].</span>
+            <span data-lang="bn">পদার্থবিদ্যার মৌলিক ভিত্তিগুলি অন্বেষণ করুন। শিখুন কীভাবে ভৌত রাশিগুলিকে [M], [L], [T], এবং [θ] এর মাধ্যমে প্রকাশ করা হয়।</span>
+        </p>
+    </header>
+
+    <!-- Dimension Builder Simulation -->
+    <section class="max-w-4xl mx-auto px-4 py-12">
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+            <div class="bg-indigo-600 p-6 text-white text-center">
+                <h2 class="text-2xl font-bold">
+                    <span data-lang="en">Dimension Builder</span>
+                    <span data-lang="bn">মাত্রীয় সংকেত নির্মাতা</span>
+                </h2>
+            </div>
+            <div class="p-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+                    <div class="text-center">
+                        <label class="block text-sm font-bold text-slate-500 mb-2 underline decoration-indigo-400">Mass [M]</label>
+                        <input type="number" value="1" id="m-val" class="w-full text-center text-xl font-mono border-2 border-slate-200 rounded-lg p-2 focus:border-indigo-500 focus:outline-none transition-all">
+                    </div>
+                    <div class="text-center">
+                        <label class="block text-sm font-bold text-slate-500 mb-2 underline decoration-emerald-400">Length [L]</label>
+                        <input type="number" value="1" id="l-val" class="w-full text-center text-xl font-mono border-2 border-slate-200 rounded-lg p-2 focus:border-emerald-500 focus:outline-none transition-all">
+                    </div>
+                    <div class="text-center">
+                        <label class="block text-sm font-bold text-slate-500 mb-2 underline decoration-rose-400">Time [T]</label>
+                        <input type="number" value="-2" id="t-val" class="w-full text-center text-xl font-mono border-2 border-slate-200 rounded-lg p-2 focus:border-rose-500 focus:outline-none transition-all">
+                    </div>
+                    <div class="text-center">
+                        <label class="block text-sm font-bold text-slate-500 mb-2 underline decoration-amber-400">Temp [θ]</label>
+                        <input type="number" value="0" id="th-val" class="w-full text-center text-xl font-mono border-2 border-slate-200 rounded-lg p-2 focus:border-amber-500 focus:outline-none transition-all">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 rounded-2xl p-8 text-center">
+                    <p class="text-slate-400 text-sm mb-2 uppercase tracking-widest font-bold">Result / ফলাফল</p>
+                    <div id="result-display" class="text-4xl md:text-6xl font-mono text-white tracking-widest">
+                        [M<sup>1</sup>L<sup>1</sup>T<sup>-2</sup>θ<sup>0</sup>]
+                    </div>
+                    <div id="identified-quantity" class="mt-4 text-indigo-400 font-semibold text-lg italic">
+                        Force / বল
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Table -->
+    <section class="max-w-6xl mx-auto px-4 py-16">
+        <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h3 class="text-3xl font-bold text-slate-800 mb-2">
+                    <span data-lang="en">Reference Table</span>
+                    <span data-lang="bn">রেফারেন্স টেবিল</span>
+                </h3>
+                <p class="text-slate-500">
+                    <span data-lang="en">Quick lookup for common physical quantities.</span>
+                    <span data-lang="bn">সাধারণ ভৌত রাশিগুলির একটি দ্রুত তালিকা।</span>
+                </p>
+            </div>
+            <div class="relative group">
+                <input type="text" id="searchInput" placeholder="Search / খুঁজুন..." class="pl-10 pr-4 py-2 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none w-full md:w-64 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-3 text-slate-400 group-focus-within:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-2xl shadow-sm border border-slate-200">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 text-slate-600 uppercase text-sm tracking-wider">
+                        <th class="p-5 border-b">
+                            <span data-lang="en">Physical Quantity</span>
+                            <span data-lang="bn">ভৌত রাশি</span>
+                        </th>
+                        <th class="p-5 border-b">
+                            <span data-lang="en">SI Unit</span>
+                            <span data-lang="bn">SI একক</span>
+                        </th>
+                        <th class="p-5 border-b">
+                            <span data-lang="en">Dimension</span>
+                            <span data-lang="bn">মাত্রীয় সংকেত</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="dataTable" class="divide-y divide-slate-100">
+                    <!-- Dynamic Content -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <footer class="bg-slate-900 text-slate-400 py-12 mt-12 border-t border-slate-800">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="mb-2">© 2023 Dimensional Analysis Educator. Built for Science.</p>
+            <div class="flex justify-center space-x-4">
+                <span class="bg-slate-800 px-3 py-1 rounded text-xs">Physics</span>
+                <span class="bg-slate-800 px-3 py-1 rounded text-xs">Dimensions</span>
+                <span class="bg-slate-800 px-3 py-1 rounded text-xs">EduTech</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const data = [
+            { en: "Area", bn: "ক্ষেত্রফল", unit: "m²", dim: "[L²]", formula: {m:0, l:2, t:0, th:0} },
+            { en: "Volume", bn: "আয়তন", unit: "m³", dim: "[L³]", formula: {m:0, l:3, t:0, th:0} },
+            { en: "Velocity", bn: "বেগ", unit: "m/s", dim: "[LT⁻¹]", formula: {m:0, l:1, t:-1, th:0} },
+            { en: "Acceleration", bn: "ত্বরণ", unit: "m/s²", dim: "[LT⁻²]", formula: {m:0, l:1, t:-2, th:0} },
+            { en: "Force", bn: "বল", unit: "Newton (N)", dim: "[MLT⁻²]", formula: {m:1, l:1, t:-2, th:0} },
+            { en: "Work / Energy", bn: "কার্য / শক্তি", unit: "Joule (J)", dim: "[ML²T⁻²]", formula: {m:1, l:2, t:-2, th:0} },
+            { en: "Power", bn: "ক্ষমতা", unit: "Watt (W)", dim: "[ML²T⁻³]", formula: {m:1, l:2, t:-3, th:0} },
+            { en: "Pressure", bn: "চাপ", unit: "Pascal (Pa)", dim: "[ML⁻¹T⁻²]", formula: {m:1, l:-1, t:-2, th:0} },
+            { en: "Density", bn: "ঘনত্ব", unit: "kg/m³", dim: "[ML⁻³]", formula: {m:1, l:-3, t:0, th:0} },
+            { en: "Temperature", bn: "উষ্ণতা", unit: "Kelvin (K)", dim: "[θ]", formula: {m:0, l:0, t:0, th:1} },
+            { en: "Specific Heat", bn: "আপেক্ষিক তাপ", unit: "J/(kg·K)", dim: "[L²T⁻²θ⁻¹]", formula: {m:0, l:2, t:-2, th:-1} },
+            { en: "Frequency", bn: "কম্পাঙ্ক", unit: "Hertz (Hz)", dim: "[T⁻¹]", formula: {m:0, l:0, t:-1, th:0} }
+        ];
+
+        let currentLang = 'en';
+
+        const langToggle = document.getElementById('langToggle');
+        const dataTable = document.getElementById('dataTable');
+        const searchInput = document.getElementById('searchInput');
+        
+        const mInput = document.getElementById('m-val');
+        const lInput = document.getElementById('l-val');
+        const tInput = document.getElementById('t-val');
+        const thInput = document.getElementById('th-val');
+        const resultDisplay = document.getElementById('result-display');
+        const identifiedQty = document.getElementById('identified-quantity');
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'bn' : 'en';
+            document.body.classList.toggle('lang-bn');
+            renderTable();
+            updateBuilder();
+        }
+
+        function renderTable(filter = '') {
+            dataTable.innerHTML = '';
+            const filteredData = data.filter(item => 
+                item.en.toLowerCase().includes(filter.toLowerCase()) || 
+                item.bn.includes(filter) ||
+                item.unit.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            filteredData.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-indigo-50 transition-colors';
+                row.innerHTML = `
+                    <td class="p-5 font-semibold text-slate-700">${currentLang === 'en' ? item.en : item.bn}</td>
+                    <td class="p-5 font-mono text-sm text-slate-500">${item.unit}</td>
+                    <td class="p-5"><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md font-mono font-bold">${item.dim}</span></td>
+                `;
+                dataTable.appendChild(row);
+            });
+        }
+
+        function updateBuilder() {
+            const m = mInput.value || 0;
+            const l = lInput.value || 0;
+            const t = tInput.value || 0;
+            const th = thInput.value || 0;
+
+            let resultHTML = '[';
+            if (m != 0) resultHTML += `M<sup>${m}</sup>`;
+            if (l != 0) resultHTML += `L<sup>${l}</sup>`;
+            if (t != 0) resultHTML += `T<sup>${t}</sup>`;
+            if (th != 0) resultHTML += `θ<sup>${th}</sup>`;
+            if (m == 0 && l == 0 && t == 0 && th == 0) resultHTML += 'Dimensionless';
+            resultHTML += ']';
+            
+            resultDisplay.innerHTML = resultHTML;
+
+            // Identification logic
+            const match = data.find(d => 
+                d.formula.m == m && d.formula.l == l && d.formula.t == t && d.formula.th == th
+            );
+
+            if (match) {
+                identifiedQty.innerText = `${match.en} / ${match.bn}`;
+                identifiedQty.className = "mt-4 text-emerald-500 font-bold text-lg animate-pulse";
+            } else {
+                identifiedQty.innerText = currentLang === 'en' ? "Unknown Quantity" : "অজানা রাশি";
+                identifiedQty.className = "mt-4 text-slate-400 italic text-lg";
+            }
+        }
+
+        langToggle.addEventListener('click', toggleLanguage);
+        searchInput.addEventListener('input', (e) => renderTable(e.target.value));
+        [mInput, lInput, tInput, thInput].forEach(input => {
+            input.addEventListener('input', updateBuilder);
+        });
+
+        // Initialize
+        renderTable();
+        updateBuilder();
+    </script>
+</body>
+</html>
