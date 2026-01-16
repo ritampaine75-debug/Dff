@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SkyDrive - Flying Car</title>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --secondary: #7000ff;
+            --bg: #050510;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { 
+            background: var(--bg); 
+            overflow: hidden; 
+            touch-action: none; 
+            color: white; 
+            height: 100vh;
+            width: 100vw;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #0a0a2e 0%, #200b30 100%);
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        .score-box {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--primary);
+        }
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: transparent;
+            color: white;
+            border: 2px solid var(--primary);
+            cursor: pointer;
+            border-radius: 50px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+        }
+        button:hover {
+            background: var(--primary);
+            color: var(--bg);
+            box-shadow: 0 0 30px var(--primary);
+        }
+        .instructions {
+            margin-top: 20px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui">
+        <div class="score-box">DISTANCE: <span id="score">0</span>m</div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="msg">SKYDRIVE</h1>
+        <button id="startBtn">Engine Start</button>
+        <p class="instructions">Tap / Space to Boost Up</p>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const msg = document.getElementById('msg');
+
+    let gameActive = false;
+    let score = 0;
+    let animationId;
+
+    const config = {
+        gravity: 0.25,
+        thrust: -0.6,
+        obstacleSpeed: 5,
+        obstacleSpawnRate: 90,
+        gap: 200
+    };
+
+    let car = {
+        x: 80,
+        y: 0,
+        vy: 0,
+        width: 60,
+        height: 30,
+        rotation: 0
+    };
+
+    let obstacles = [];
+    let clouds = [];
+    let frame = 0;
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        car.y = canvas.height / 2;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function createObstacle() {
+        const minHeight = 100;
+        const gap = Math.max(180, 300 - (score / 100));
+        const range = canvas.height - gap - (minHeight * 2);
+        const top = Math.random() * range + minHeight;
+        
+        obstacles.push({
+            x: canvas.width,
+            top: top,
+            bottom: canvas.height - top - gap,
+            width: 60,
+            passed: false
+        });
+    }
+
+    function createCloud() {
+        clouds.push({
+            x: canvas.width + 100,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 100 + 50,
+            speed: Math.random() * 1 + 0.5
+        });
+    }
+
+    function drawCar() {
+        ctx.save();
+        ctx.translate(car.x + car.width/2, car.y + car.height/2);
+        
+        // Tilt based on velocity
+        car.rotation = Math.min(Math.max(car.vy * 0.05, -0.4), 0.4);
+        ctx.rotate(car.rotation);
+
+        // Body
+        ctx.fillStyle = '#eee';
+        ctx.beginPath();
+        ctx.roundRect(-car.width/2, -car.height/2, car.width, car.height, 10);
+        ctx.fill();
+
+        // Cockpit
+        ctx.fillStyle = '#00f2ff';
+        ctx.beginPath();
+        ctx.roundRect(0, -car.height/2 + 5, car.width/2 - 5, car.height - 10, 5);
+        ctx.fill();
+
+        // Thruster glow
+        if (keys.boost) {
+            ctx.fillStyle = '#ff3d00';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff3d00';
+            ctx.beginPath();
+            ctx.moveTo(-car.width/2, -5);
+            ctx.lineTo(-car.width/2 - 20, 0);
+            ctx.lineTo(-car.width/2, 5);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    function drawObstacles() {
+        obstacles.forEach(o => {
+            const grad = ctx.createLinearGradient(o.x, 0, o.x + o.width, 0);
+            grad.addColorStop(0, '#1a1a3a');
+            grad.addColorStop(0.5, '#3a1a5a');
+            grad.addColorStop(1, '#1a1a3a');
+
+            ctx.fillStyle = grad;
+            ctx.strokeStyle = '#7000ff';
+            ctx.lineWidth = 2;
+
+            // Top tower
+            ctx.fillRect(o.x, 0, o.width, o.top);
+            ctx.strokeRect(o.x, 0, o.width, o.top);
+
+            // Bottom tower
+            ctx.fillRect(o.x, canvas.height - o.bottom, o.width, o.bottom);
+            ctx.strokeRect(o.x, canvas.height - o.bottom, o.width, o.bottom);
+            
+            // Neon lights
+            ctx.fillStyle = '#00f2ff';
+            ctx.fillRect(o.x + o.width - 10, o.top - 20, 5, 5);
+            ctx.fillRect(o.x + o.width - 10, canvas.height - o.bottom + 15, 5, 5);
+        });
+    }
+
+    function drawClouds() {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        clouds.forEach(c => {
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        frame++;
+        
+        // Physics
+        if (keys.boost) {
+            car.vy += config.thrust;
+        }
+        car.vy += config.gravity;
+        car.y += car.vy;
+
+        // Boundaries
+        if (car.y < 0) { car.y = 0; car.vy = 0; }
+        if (car.y + car.height > canvas.height) { gameOver(); }
+
+        // Obstacles
+        if (frame % config.obstacleSpawnRate === 0) createObstacle();
+        if (frame % 100 === 0) createCloud();
+
+        obstacles.forEach((o, index) => {
+            o.x -= config.obstacleSpeed;
+
+            // Collision
+            if (
+                car.x + car.width - 10 > o.x && 
+                car.x + 10 < o.x + o.width && 
+                (car.y + 5 < o.top || car.y + car.height - 5 > canvas.height - o.bottom)
+            ) {
+                gameOver();
+            }
+
+            if (!o.passed && o.x + o.width < car.x) {
+                o.passed = true;
+                score += 10;
+                scoreEl.innerText = score;
+            }
+
+            if (o.x + o.width < 0) obstacles.splice(index, 1);
+        });
+
+        clouds.forEach((c, index) => {
+            c.x -= c.speed;
+            if (c.x + c.size < 0) clouds.splice(index, 1);
+        });
+
+        render();
+        animationId = requestAnimationFrame(update);
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Background Grid
+        ctx.strokeStyle = 'rgba(112, 0, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for(let i = 0; i < canvas.width; i += 50) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        }
+        for(let i = 0; i < canvas.height; i += 50) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+        }
+
+        drawClouds();
+        drawObstacles();
+        drawCar();
+    }
+
+    function gameOver() {
+        gameActive = false;
+        cancelAnimationFrame(animationId);
+        msg.innerText = "CRASHED";
+        startBtn.innerText = "Reboot System";
+        overlay.classList.remove('hidden');
+    }
+
+    function reset() {
+        score = 0;
+        scoreEl.innerText = score;
+        car.y = canvas.height / 2;
+        car.vy = 0;
+        obstacles = [];
+        clouds = [];
+        frame = 0;
+        overlay.classList.add('hidden');
+        gameActive = true;
+        update();
+    }
+
+    const keys = { boost: false };
+    
+    function handleInput(isDown) {
+        keys.boost = isDown;
+    }
+
+    window.addEventListener('keydown', e => { if(e.code === 'Space') handleInput(true); });
+    window.addEventListener('keyup', e => { if(e.code === 'Space') handleInput(false); });
+    window.addEventListener('touchstart', e => { handleInput(true); e.preventDefault(); }, {passive: false});
+    window.addEventListener('touchend', e => { handleInput(false); e.preventDefault(); }, {passive: false});
+    
+    startBtn.addEventListener('click', reset);
+
+    // Initial render
+    render();
+
+</script>
+</body>
+</html>
