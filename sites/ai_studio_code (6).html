@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Coordinate Geometry – Dark Math Pro</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* 
+         * THEME: Dark Math Pro 
+         * CSS Variables & Global Styles
+         */
+        :root {
+            --bg-color: #0d1117;
+            --surface-color: #161b22;
+            --input-bg: #21262d;
+            --border-color: #30363d;
+            --accent-primary: #2f81f7; /* Neon Blue */
+            --accent-secondary: #2ea043; /* Neon Green */
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --grid-color: rgba(255, 255, 255, 0.1);
+            --axis-color: #f0f6fc;
+            --danger-color: #da3633;
+            
+            --font-ui: 'Poppins', sans-serif;
+            --font-math: 'Roboto Mono', monospace;
+            
+            --app-height: 100vh;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            height: var(--app-height);
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER */
+        header {
+            background-color: var(--surface-color);
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .app-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-title i {
+            color: var(--accent-primary);
+        }
+
+        /* CANVAS AREA */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background-color: #000;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* FLOATING ACTION BUTTONS (FAB) */
+        .fab-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fab {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: none;
+            background: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+            background: var(--input-bg);
+        }
+
+        /* CONTROL PANEL */
+        .control-panel {
+            background-color: var(--surface-color);
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+            z-index: 20;
+        }
+
+        /* INPUT AREA */
+        .input-group {
+            position: relative;
+        }
+
+        .coord-input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-family: var(--font-math);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .coord-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        .coord-input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        /* ACTION BUTTONS GRID */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .btn {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-family: var(--font-ui);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn i {
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+        }
+
+        .btn.primary {
+            background: rgba(47, 129, 247, 0.15);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            grid-column: span 2; /* Plot takes 2 slots */
+        }
+
+        .btn.danger {
+            color: var(--danger-color);
+            border-color: rgba(218, 54, 51, 0.3);
+        }
+
+        /* RESULT CARD */
+        .result-card {
+            background: var(--input-bg);
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: none; /* Hidden by default */
+            font-size: 0.9rem;
+            border-left: 3px solid var(--accent-secondary);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .result-card strong {
+            color: var(--accent-secondary);
+            font-family: var(--font-math);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 480px) {
+            .actions-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .btn span {
+                font-size: 0.7rem;
+            }
+            .btn.primary {
+                grid-column: span 4; /* Full width on mobile for Plot */
+            }
+            .actions-grid .btn:not(.primary) {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="app-title">
+            <i class="fas fa-cube"></i>
+            <span>Dark Math Pro</span>
+        </div>
+        <div class="header-actions">
+            <i class="fas fa-info-circle" style="color: var(--text-secondary); cursor: pointer;" onclick="alert('Enter points like (2,4) or multiple like (1,1), (3,5).')"></i>
+        </div>
+    </header>
+
+    <!-- MAIN GRAPH AREA -->
+    <div id="canvas-container">
+        <canvas id="graphCanvas"></canvas>
+        
+        <!-- Zoom Controls -->
+        <div class="fab-container">
+            <button class="fab" id="btnZoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
+            <button class="fab" id="btnZoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
+            <button class="fab" id="btnResetView" title="Reset View"><i class="fas fa-compress-arrows-alt"></i></button>
+        </div>
+    </div>
+
+    <!-- CONTROL PANEL -->
+    <div class="control-panel">
+        
+        <!-- Input -->
+        <div class="input-group">
+            <input type="text" id="coordInput" class="coord-input" placeholder="(x, y) e.g. (2, 3), (-1, 4)" autocomplete="off">
+        </div>
+
+        <!-- Result Display -->
+        <div id="resultCard" class="result-card">
+            <span id="resultText">Result will appear here...</span>
+        </div>
+
+        <!-- Buttons -->
+        <div class="actions-grid">
+            <button class="btn primary" id="btnPlot">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Plot Points</span>
+            </button>
+            <button class="btn" id="btnLine">
+                <i class="fas fa-slash"></i>
+                <span>Connect</span>
+            </button>
+            <button class="btn" id="btnDist">
+                <i class="fas fa-ruler-horizontal"></i>
+                <span>Distance</span>
+            </button>
+            <button class="btn" id="btnMid">
+                <i class="fas fa-dot-circle"></i>
+                <span>Midpoint</span>
+            </button>
+            <button class="btn danger" id="btnClear" style="grid-column: span 4; margin-top: 5px;">
+                <i class="fas fa-trash"></i>
+                <span>Clear All</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CORE LOGIC - Smart Coordinate Geometry App
+         */
+
+        // State Management
+        const state = {
+            points: [],         // Array of {x, y, label}
+            lines: [],          // Array of lines to draw
+            scale: 40,          // Pixels per unit
+            offsetX: 0,         // Pan X
+            offsetY: 0,         // Pan Y
+            isDragging: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            showMidpoint: null, // Temporary midpoint storage
+            highlightLine: null // For highlighting distance
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const inputField = document.getElementById('coordInput');
+        const resultCard = document.getElementById('resultCard');
+        const resultText = document.getElementById('resultText');
+
+        // --- CANVAS ENGINE ---
+
+        function initCanvas() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            draw();
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            // Handle DPI for sharp text on mobile
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = container.clientWidth * dpr;
+            canvas.height = container.clientHeight * dpr;
+            
+            // Normalize coordinate system
+            ctx.scale(dpr, dpr);
+            
+            // Adjust CSS size
+            canvas.style.width = container.clientWidth + 'px';
+            canvas.style.height = container.clientHeight + 'px';
+            
+            draw();
+        }
+
+        // Coordinate Converters
+        // World (x,y) -> Screen Pixels
+        function toScreenX(x) {
+            const centerX = canvas.clientWidth / 2 + state.offsetX;
+            return centerX + (x * state.scale);
+        }
+
+        function toScreenY(y) {
+            const centerY = canvas.clientHeight / 2 + state.offsetY;
+            return centerY - (y * state.scale); // Invert Y for Cartesian
+        }
+
+        // Main Render Loop
+        function draw() {
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            // 1. Clear Canvas (Pure Black)
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Draw Grid
+            drawGrid(width, height);
+
+            // 3. Draw Axes
+            drawAxes(width, height);
+
+            // 4. Draw Lines (Connected Points)
+            if (state.lines.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(47, 129, 247, 0.6)"; // Neon Blue
+                ctx.lineWidth = 2;
+                state.lines.forEach((line, index) => {
+                    const startX = toScreenX(line.p1.x);
+                    const startY = toScreenY(line.p1.y);
+                    const endX = toScreenX(line.p2.x);
+                    const endY = toScreenY(line.p2.y);
+                    
+                    if (index === 0) ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                });
+                ctx.stroke();
+            }
+
+            // 5. Draw Special Highlights (Distance Line)
+            if (state.highlightLine) {
+                ctx.beginPath();
+                ctx.strokeStyle = "#2ea043"; // Neon Green
+                ctx.lineWidth = 3;
+                ctx.moveTo(toScreenX(state.highlightLine.p1.x), toScreenY(state.highlightLine.p1.y));
+                ctx.lineTo(toScreenX(state.highlightLine.p2.x), toScreenY(state.highlightLine.p2.y));
+                ctx.stroke();
+            }
+
+            // 6. Draw Points
+            state.points.forEach(p => {
+                const screenX = toScreenX(p.x);
+                const screenY = toScreenY(p.y);
+
+                // Glow effect
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = p.isMidpoint ? "#da3633" : "#2f81f7";
+
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
+                ctx.fillStyle = p.isMidpoint ? "#da3633" : "#2f81f7"; // Red for midpoint, Blue for regular
+                ctx.fill();
+                
+                // Reset glow for text
+                ctx.shadowBlur = 0;
+
+                // Label
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "12px Roboto Mono";
+                ctx.fillText(`(${p.x}, ${p.y})`, screenX + 10, screenY - 10);
+            });
+        }
+
+        function drawGrid(w, h) {
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)"; // Very faint
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+
+            // Calculate logical visible area
+            const startCol = Math.floor((-state.offsetX - w/2) / state.scale);
+            const endCol = Math.ceil((-state.offsetX + w/2) / state.scale);
+            const startRow = Math.floor((state.offsetY - h/2) / state.scale);
+            const endRow = Math.ceil((state.offsetY + h/2) / state.scale);
+
+            // Vertical lines
+            for (let i = startCol; i <= endCol; i++) {
+                const x = toScreenX(i);
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+            }
+
+            // Horizontal lines
+            for (let i = startRow; i <= endRow; i++) {
+                const y = toScreenY(i);
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawAxes(w, h) {
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            const originX = toScreenX(0);
+            const originY = toScreenY(0);
+
+            // Y Axis
+            ctx.moveTo(originX, 0);
+            ctx.lineTo(originX, h);
+
+            // X Axis
+            ctx.moveTo(0, originY);
+            ctx.lineTo(w, originY);
+
+            ctx.stroke();
+        }
+
+        // --- INTERACTION HANDLERS ---
+
+        // Pan Logic (Mouse & Touch)
+        function startPan(x, y) {
+            state.isDragging = true;
+            state.lastMouseX = x;
+            state.lastMouseY = y;
+        }
+
+        function doPan(x, y) {
+            if (!state.isDragging) return;
+            const dx = x - state.lastMouseX;
+            const dy = y - state.lastMouseY;
+            state.offsetX += dx;
+            state.offsetY += dy;
+            state.lastMouseX = x;
+            state.lastMouseY = y;
+            draw();
+        }
+
+        function endPan() {
+            state.isDragging = false;
+        }
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', e => startPan(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => doPan(e.clientX, e.clientY));
+        window.addEventListener('mouseup', endPan);
+
+        // Touch Events (Mobile)
+        canvas.addEventListener('touchstart', e => {
+            if(e.touches.length === 1) {
+                startPan(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+        canvas.addEventListener('touchmove', e => {
+            if(e.touches.length === 1) {
+                e.preventDefault(); // Stop page scrolling
+                doPan(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+        canvas.addEventListener('touchend', endPan);
+
+        // --- BUTTON ACTIONS ---
+
+        // Helper: Parse Input String "(1,2), (3,4)"
+        function parsePoints() {
+            const raw = inputField.value;
+            // Regex to find coordinate pairs
+            const regex = /\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/g;
+            let match;
+            const newPoints = [];
+
+            while ((match = regex.exec(raw)) !== null) {
+                newPoints.push({
+                    x: parseFloat(match[1]),
+                    y: parseFloat(match[2]),
+                    isMidpoint: false
+                });
+            }
+            return newPoints;
+        }
+
+        function showResult(text, isError = false) {
+            resultText.innerHTML = text;
+            resultCard.style.display = 'block';
+            resultCard.style.borderLeftColor = isError ? 'var(--danger-color)' : 'var(--accent-secondary)';
+            if(isError) {
+                resultText.style.color = 'var(--danger-color)';
+            } else {
+                resultText.style.color = 'var(--text-primary)';
+            }
+        }
+
+        // 1. Plot Points
+        document.getElementById('btnPlot').addEventListener('click', () => {
+            const pts = parsePoints();
+            if (pts.length === 0) {
+                showResult("Invalid format. Use (x,y). Example: (2,4)", true);
+                return;
+            }
+            state.points = pts;
+            state.lines = []; // Reset lines
+            state.highlightLine = null;
+            draw();
+            showResult(`${pts.length} point(s) plotted successfully.`);
+        });
+
+        // 2. Connect Points (Line)
+        document.getElementById('btnLine').addEventListener('click', () => {
+            if (state.points.length < 2) {
+                showResult("Plot at least 2 points first.", true);
+                return;
+            }
+            state.lines = [];
+            // Create segments between consecutive points
+            for (let i = 0; i < state.points.length - 1; i++) {
+                state.lines.push({ p1: state.points[i], p2: state.points[i+1] });
+            }
+            draw();
+            showResult("Points connected.");
+        });
+
+        // 3. Distance Calculation
+        document.getElementById('btnDist').addEventListener('click', () => {
+            if (state.points.length < 2) {
+                showResult("Need 2 points to calculate distance.", true);
+                return;
+            }
+            
+            // Take the last two points for calculation logic
+            const p1 = state.points[state.points.length - 2];
+            const p2 = state.points[state.points.length - 1];
+
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.sqrt(dx*dx + dy*dy).toFixed(2);
+
+            state.highlightLine = { p1, p2 };
+            draw();
+            
+            const mathHTML = `d = √(${p2.x} - ${p1.x})² + (${p2.y} - ${p1.y})²<br><strong>Distance = ${dist} units</strong>`;
+            showResult(mathHTML);
+        });
+
+        // 4. Midpoint Calculation
+        document.getElementById('btnMid').addEventListener('click', () => {
+            if (state.points.length < 2) {
+                showResult("Need 2 points for midpoint.", true);
+                return;
+            }
+
+            const p1 = state.points[state.points.length - 2];
+            const p2 = state.points[state.points.length - 1];
+
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+
+            // Add midpoint to points array temporarily
+            const midPoint = { x: mx, y: my, isMidpoint: true };
+            // Avoid duplicates
+            state.points = state.points.filter(p => !p.isMidpoint);
+            state.points.push(midPoint);
+            
+            draw();
+            showResult(`Midpoint M = ( (x₁+x₂)/2 , (y₁+y₂)/2 )<br><strong>M = (${mx}, ${my})</strong>`);
+        });
+
+        // 5. Clear All
+        document.getElementById('btnClear').addEventListener('click', () => {
+            state.points = [];
+            state.lines = [];
+            state.highlightLine = null;
+            inputField.value = '';
+            resultCard.style.display = 'none';
+            draw();
+        });
+
+        // --- ZOOM CONTROLS ---
+        document.getElementById('btnZoomIn').addEventListener('click', () => {
+            state.scale *= 1.2;
+            draw();
+        });
+
+        document.getElementById('btnZoomOut').addEventListener('click', () => {
+            state.scale /= 1.2;
+            if(state.scale < 5) state.scale = 5; // Min limit
+            draw();
+        });
+
+        document.getElementById('btnResetView').addEventListener('click', () => {
+            state.scale = 40;
+            state.offsetX = 0;
+            state.offsetY = 0;
+            draw();
+        });
+
+        // Support scrolling on canvas to zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 1.1;
+            if (e.deltaY < 0) {
+                state.scale *= zoomFactor;
+            } else {
+                state.scale /= zoomFactor;
+            }
+            if(state.scale < 5) state.scale = 5;
+            draw();
+        });
+
+        // Initialize App
+        initCanvas();
+
+    </script>
+</body>
+</html>
