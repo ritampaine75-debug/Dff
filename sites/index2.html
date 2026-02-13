@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Valentine</title>
+    <style>
+        /* IMPORT FONTS */
+        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:wght@300;600&display=swap');
+
+        /* RESET & VARIABLES */
+        :root {
+            --neon-pink: #ff007f;
+            --deep-red: #800020;
+            --glass-bg: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* Prevent text selection */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            background-color: #050505;
+            background-image: 
+                radial-gradient(circle at 20% 30%, #4a0018 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, #2e001f 0%, transparent 40%);
+            font-family: 'Montserrat', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            position: relative;
+        }
+
+        /* FLOATING HEARTS BACKGROUND */
+        .bg-hearts {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        
+        .bg-heart {
+            position: absolute;
+            color: var(--neon-pink);
+            opacity: 0.3;
+            animation: floatUp linear infinite;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+        }
+
+        /* MAIN GLASS CARD */
+        .card {
+            width: 90%;
+            max-width: 380px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 0, 127, 0.2);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        /* ANIMATED BEAR / HEART */
+        .mascot {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite ease-in-out;
+            filter: drop-shadow(0 0 15px var(--neon-pink));
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 3rem;
+            background: linear-gradient(to right, #ff9a9e, #ff007f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            line-height: 1.1;
+        }
+
+        p {
+            font-size: 1rem;
+            color: #ddd;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+
+        /* BUTTONS CONTAINER */
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            justify-content: center;
+            height: 60px; /* Fixed height to prevent layout jumps */
+            position: relative;
+        }
+
+        button {
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+
+        .btn-yes {
+            background: var(--neon-pink);
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
+            z-index: 2;
+        }
+
+        .btn-yes:active { transform: scale(0.95); }
+
+        .btn-no {
+            background: transparent;
+            border: 2px solid var(--neon-pink);
+            color: white;
+            z-index: 2;
+        }
+
+        /* DEVELOPER FOOTER */
+        .footer {
+            margin-top: 40px;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .footer a {
+            color: var(--neon-pink);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        /* SUCCESS SCREEN HIDDEN */
+        #success-view {
+            display: none;
+            animation: fadeIn 1s forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- Background Hearts -->
+    <div class="bg-hearts" id="bg-hearts"></div>
+
+    <div class="card">
+        
+        <!-- QUESTION VIEW -->
+        <div id="question-view">
+            <div class="mascot">🧸</div>
+            <h1>Be My<br>Valentine?</h1>
+            <p>Will you make me the happiest person alive?</p>
+            
+            <div class="btn-container">
+                <button class="btn-yes" onclick="acceptLove()">YES ❤️</button>
+                <button class="btn-no" id="noBtn">NO 💔</button>
+            </div>
+        </div>
+
+        <!-- SUCCESS VIEW -->
+        <div id="success-view">
+            <div class="mascot">💖</div>
+            <h1>YAYYY!</h1>
+            <p>Best decision ever! <br>I love you so much!</p>
+            <p style="font-size: 0.8rem; opacity: 0.7;">(Screenshot this and send it to me!)</p>
+        </div>
+
+        <div class="footer">
+            Developer: Ritam Paine<br>
+            Insta: <a href="https://instagram.com/ritam_2024_0" target="_blank">@ritam_2024_0</a>
+        </div>
+    </div>
+
+    <script>
+        const noBtn = document.getElementById('noBtn');
+        const questionView = document.getElementById('question-view');
+        const successView = document.getElementById('success-view');
+
+        // 1. GENERATE BACKGROUND HEARTS
+        function createBgHearts() {
+            const container = document.getElementById('bg-hearts');
+            for(let i=0; i<20; i++) {
+                const heart = document.createElement('div');
+                heart.classList.add('bg-heart');
+                heart.innerHTML = '❤';
+                heart.style.left = Math.random() * 100 + '%';
+                heart.style.fontSize = Math.random() * 20 + 10 + 'px';
+                heart.style.animationDuration = Math.random() * 5 + 5 + 's';
+                heart.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(heart);
+            }
+        }
+        createBgHearts();
+
+        // 2. THE "RUNAWAY" LOGIC (Mobile Optimized)
+        function moveButton(e) {
+            // Calculate random position within viewport
+            // Leaving 50px padding from edges so it doesn't disappear
+            const maxWidth = window.innerWidth - 100;
+            const maxHeight = window.innerHeight - 100;
+
+            const randomX = Math.random() * maxWidth + 20;
+            const randomY = Math.random() * maxHeight + 20;
+
+            // Apply Fixed Position to break out of the flex container
+            noBtn.style.position = 'fixed';
+            noBtn.style.left = randomX + 'px';
+            noBtn.style.top = randomY + 'px';
+            
+            // Add a frantic shake effect
+            noBtn.innerText = "NO??"; 
+        }
+
+        // Trigger move on Touch (Mobile) and MouseOver (Desktop)
+        noBtn.addEventListener('touchstart', (e) => {
+            // 80% chance to move immediately on touch
+            if (Math.random() > 0.2) {
+                e.preventDefault(); // Stop click
+                moveButton();
+            }
+        });
+        
+        noBtn.addEventListener('mouseover', moveButton);
+
+        // 3. THE "IMPOSSIBLE NO" FAILSAFE
+        // If they actually manage to click/tap the button:
+        noBtn.addEventListener('click', () => {
+            // Visual change
+            noBtn.style.backgroundColor = '#ff007f';
+            noBtn.style.color = 'white';
+            noBtn.style.border = 'none';
+            noBtn.innerText = "YES ❤️";
+            
+            // Short delay then trigger success
+            setTimeout(() => {
+                acceptLove();
+            }, 300);
+        });
+
+        // 4. SUCCESS FUNCTION
+        function acceptLove() {
+            // Hide question, show success
+            questionView.style.display = 'none';
+            successView.style.display = 'block';
+            
+            // Explosion of hearts
+            setInterval(() => {
+                createExplosionHeart();
+            }, 100);
+        }
+
+        // 5. HEART EXPLOSION ANIMATION
+        function createExplosionHeart() {
+            const heart = document.createElement('div');
+            heart.innerHTML = '💖';
+            heart.style.position = 'fixed';
+            heart.style.left = Math.random() * 100 + 'vw';
+            heart.style.top = '110vh';
+            heart.style.fontSize = Math.random() * 30 + 20 + 'px';
+            heart.style.transition = 'top 3s ease-out, opacity 3s';
+            heart.style.zIndex = '100';
+            document.body.appendChild(heart);
+
+            setTimeout(() => {
+                heart.style.top = '-10vh';
+                heart.style.opacity = '0';
+            }, 100);
+
+            setTimeout(() => {
+                heart.remove();
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
