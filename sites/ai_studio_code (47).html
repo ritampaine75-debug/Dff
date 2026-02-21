@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smooth AI Physics</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #111; font-family: sans-serif; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        video { z-index: 1; opacity: 0.15; }
+        #canvas { z-index: 2; }
+        
+        .ui-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .header { background: rgba(0,0,0,0.5); padding: 15px; color: white; text-align: center; }
+        .footer { padding: 20px; display: flex; justify-content: center; pointer-events: auto; }
+        
+        #btn-start { padding: 15px 40px; font-size: 20px; border-radius: 50px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #debug { position: fixed; bottom: 80px; left: 10px; color: #0f0; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+
+    <div id="debug">Initializing AI...</div>
+
+    <div class="ui-layer" id="ui">
+        <div class="header">
+            <h2 style="margin:0; font-size: 18px;">Air Gravity Guide</h2>
+            <div id="status">Loading AI Model...</div>
+        </div>
+        <div class="footer">
+            <button id="btn-start" style="display:none;">START GAME</button>
+        </div>
+    </div>
+
+<script type="module">
+    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+    // --- PHYSICS CONFIG ---
+    const { Engine, World, Bodies, Composite, Vector } = Matter;
+    const engine = Engine.create();
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const debug = document.getElementById("debug");
+
+    let handLandmarker;
+    let ball, goal;
+    let lastPoint = null;
+    let smoothPoint = { x: 0, y: 0 };
+    let platforms = [];
+    let score = 0;
+
+    // --- INITIALIZE AI ---
+    async function initAI() {
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-tasks/hand_landmarker/hand_landmarker.task`, delegate: "GPU" },
+            runningMode: "VIDEO", numHands: 1
+        });
+        document.getElementById("status").innerText = "AI Ready";
+        document.getElementById("btn-start").style.display = "block";
+    }
+
+    // --- START CAMERA ---
+    document.getElementById("btn-start").onclick = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        document.getElementById("video").srcObject = stream;
+        document.getElementById("ui").style.display = "none";
+        setupGame();
+    };
+
+    function setupGame() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Create Goal
+        goal = Bodies.rectangle(canvas.width - 60, canvas.height - 100, 80, 20, { isStatic: true, isSensor: true });
+        World.add(engine.world, goal);
+        
+        spawnBall();
+        loop();
+    }
+
+    function spawnBall() {
+        if(ball) World.remove(engine.world, ball);
+        ball = Bodies.circle(80, 50, 15, { restitution: 0.6, friction: 0.1 });
+        World.add(engine.world, ball);
+    }
+
+    // --- SMOOTHING MATH (LERP) ---
+    function lerp(start, end, amt) {
+        return (1 - amt) * start + amt * end;
+    }
+
+    function loop() {
+        Engine.update(engine, 1000/60);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Detect Hand
+        const results = handLandmarker.detectForVideo(document.getElementById("video"), performance.now());
+        
+        if (results.landmarks && results.landmarks.length > 0) {
+            const index = results.landmarks[0][8]; // Index tip
+            const thumb = results.landmarks[0][4]; // Thumb tip
+
+            // Smooth the jittery movement
+            smoothPoint.x = lerp(smoothPoint.x, index.x * canvas.width, 0.3);
+            smoothPoint.y = lerp(smoothPoint.y, index.y * canvas.height, 0.3);
+
+            // Check Pinch
+            const pinchDist = Math.hypot(index.x - thumb.x, index.y - thumb.y);
+            const isPinching = pinchDist < 0.05;
+
+            if (isPinching) {
+                // ERASER MODE
+                erasePlatforms(smoothPoint.x, smoothPoint.y);
+                drawCursor(smoothPoint.x, smoothPoint.y, "red");
+            } else {
+                // DRAW MODE
+                addPlatformSegment(smoothPoint.x, smoothPoint.y);
+                drawCursor(smoothPoint.x, smoothPoint.y, "#00d2ff");
+            }
+        } else {
+            lastPoint = null;
+        }
+
+        // 2. Draw Game Elements
+        drawGame();
+
+        requestAnimationFrame(loop);
+    }
+
+    function addPlatformSegment(x, y) {
+        if (!lastPoint) {
+            lastPoint = { x, y };
+            return;
+        }
+
+        const d = Math.hypot(x - lastPoint.x, y - lastPoint.y);
+        if (d > 25) { // Minimum distance to create a segment (saves CPU)
+            const midX = (x + lastPoint.x) / 2;
+            const midY = (y + lastPoint.y) / 2;
+            const angle = Math.atan2(y - lastPoint.y, x - lastPoint.x);
+
+            const platform = Bodies.rectangle(midX, midY, d, 8, {
+                isStatic: true,
+                angle: angle,
+                render: { fillStyle: '#00d2ff' }
+            });
+
+            World.add(engine.world, platform);
+            platforms.push(platform);
+            lastPoint = { x, y };
+
+            // Optimization: Remove old lines
+            if(platforms.length > 60) {
+                World.remove(engine.world, platforms.shift());
+            }
+        }
+    }
+
+    function erasePlatforms(x, y) {
+        lastPoint = null;
+        for (let i = platforms.length - 1; i >= 0; i--) {
+            const p = platforms[i];
+            const d = Math.hypot(p.position.x - x, p.position.y - y);
+            if (d < 50) {
+                World.remove(engine.world, p);
+                platforms.splice(i, 1);
+            }
+        }
+    }
+
+    function drawCursor(x, y, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    function drawGame() {
+        // Draw Platforms
+        ctx.fillStyle = "#00d2ff";
+        platforms.forEach(p => {
+            ctx.save();
+            ctx.translate(p.position.x, p.position.y);
+            ctx.rotate(p.angle);
+            ctx.fillRect(-Vector.magnitude(Vector.sub(p.vertices[0], p.vertices[1]))/2, -4, Vector.magnitude(Vector.sub(p.vertices[0], p.vertices[1])), 8);
+            ctx.restore();
+        });
+
+        // Draw Ball
+        ctx.beginPath();
+        ctx.arc(ball.position.x, ball.position.y, 15, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff4757";
+        ctx.fill();
+
+        // Draw Goal
+        ctx.fillStyle = "#28a745";
+        ctx.fillRect(goal.position.x - 40, goal.position.y - 10, 80, 20);
+
+        // Goal logic
+        if (ball.position.y > canvas.height + 100) spawnBall();
+        const distToGoal = Math.hypot(ball.position.x - goal.position.x, ball.position.y - goal.position.y);
+        if (distToGoal < 40) {
+            score++;
+            debug.innerText = "GOALS: " + score;
+            spawnBall();
+        }
+    }
+
+    initAI();
+</script>
+</body>
+</html>
