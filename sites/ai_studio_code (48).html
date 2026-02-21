@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Photos</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
+        #gallery { display: flex; flex-wrap: wrap; justify-content: center; padding: 20px; }
+        .photo-card { margin: 15px; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); background: white; overflow: hidden;}
+        img { width: 300px; height: auto; display: block; }
+        p.loading { font-size: 18px; color: #555; }
+    </style>
+</head>
+<body>
+
+    <h1>Photo Gallery</h1>
+    <p id="loadingMsg" class="loading">Loading photos from Firebase...</p>
+    <div id="gallery"></div>
+
+    <script type="module">
+        // Import Firebase modules using CDNs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
+            authDomain: "studio-vddd5.firebaseapp.com",
+            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
+            projectId: "studio-vddd5",
+            storageBucket: "studio-vddd5.firebasestorage.app",
+            messagingSenderId: "679230106233",
+            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // DOM Elements
+        const gallery = document.getElementById("gallery");
+        const loadingMsg = document.getElementById("loadingMsg");
+
+        // Fetch photos from Firebase Realtime Database
+        const photosRef = ref(db, "photos");
+        
+        onValue(photosRef, (snapshot) => {
+            gallery.innerHTML = ""; // Clear existing images
+            
+            const data = snapshot.val();
+            
+            if (data) {
+                loadingMsg.style.display = "none";
+                
+                // Convert to array and sort by newest first
+                const photosArray = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+
+                photosArray.forEach(photo => {
+                    // Create image container
+                    const div = document.createElement("div");
+                    div.className = "photo-card";
+
+                    // Create image element
+                    const img = document.createElement("img");
+                    img.src = photo.url;
+                    
+                    div.appendChild(img);
+                    gallery.appendChild(div);
+                });
+            } else {
+                loadingMsg.innerText = "No photos found in database.";
+            }
+        });
+    </script>
+</body>
+</html>
