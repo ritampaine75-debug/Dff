@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Air Gravity Guide - 60FPS</title>
+    <!-- MediaPipe for AI & Matter.js for Physics -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+        #container { position: relative; width: 100vw; height: 100vh; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        video { z-index: 1; opacity: 0.2; } /* Dim camera for game focus */
+        #gameCanvas { z-index: 2; }
+        
+        #overlay {
+            position: fixed; z-index: 100; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; color: white; text-align: center;
+        }
+        .hud {
+            position: fixed; top: 20px; width: 100%; display: flex; 
+            justify-content: space-between; padding: 0 20px; box-sizing: border-box;
+            z-index: 50; pointer-events: none;
+        }
+        .stat-box { background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; color: #00d2ff; font-weight: bold; border: 1px solid #333; }
+        button { padding: 15px 40px; font-size: 20px; border-radius: 50px; border: none; background: #28a745; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>GRAVITY GUIDE AI</h1>
+        <p>Guide the ball to the green goal!</p>
+        <p style="font-size: 14px; color: #aaa;">Index Finger: Draw Path<br>Pinch Finger: Erase Path</p>
+        <br>
+        <button id="startBtn">PLAY GAME</button>
+    </div>
+
+    <div class="hud">
+        <div class="stat-box" id="modeTxt">MODE: READY</div>
+        <div class="stat-box" id="scoreTxt">GOALS: 0</div>
+    </div>
+
+    <div id="container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+<script type="module">
+    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+    // --- PHYSICS ENGINE SETUP ---
+    const { Engine, Render, World, Bodies, Composite, Body, Vector } = Matter;
+    const engine = Engine.create();
+    const gameCanvas = document.getElementById("gameCanvas");
+    const ctx = gameCanvas.getContext("2d");
+    
+    let ball, goal;
+    let score = 0;
+    let platforms = [];
+    let lastPoint = null;
+
+    // --- AI SETUP ---
+    const video = document.getElementById("webcam");
+    let handLandmarker;
+    let lastVideoTime = -1;
+
+    async function initAI() {
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-tasks/hand_landmarker/hand_landmarker.task`, delegate: "CPU" },
+            runningMode: "VIDEO", numHands: 1
+        });
+        document.getElementById("startBtn").style.background = "#007bff";
+    }
+
+    // --- GAME LOGIC ---
+    function setupWorld() {
+        gameCanvas.width = window.innerWidth;
+        gameCanvas.height = window.innerHeight;
+
+        // 1. Create the falling ball
+        spawnBall();
+
+        // 2. Create the Goal (Bottom Right)
+        goal = Bodies.rectangle(gameCanvas.width - 80, gameCanvas.height - 80, 100, 20, { isStatic: true, isSensor: true, label: 'goal' });
+        World.add(engine.world, goal);
+
+        // Start Physics Loop
+        requestAnimationFrame(gameLoop);
+    }
+
+    function spawnBall() {
+        if(ball) World.remove(engine.world, ball);
+        ball = Bodies.circle(100, 50, 15, { 
+            restitution: 0.5, // Bounciness
+            friction: 0.05,
+            label: 'ball'
+        });
+        World.add(engine.world, ball);
+    }
+
+    function gameLoop() {
+        // Update Physics (60 times per second)
+        Engine.update(engine, 1000 / 60);
+
+        // Clear Screen
+        ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+        // Draw Goal
+        ctx.fillStyle = "#28a745";
+        ctx.fillRect(goal.position.x - 50, goal.position.y - 10, 100, 20);
+        ctx.shadowBlur = 15; ctx.shadowColor = "#28a745";
+
+        // Draw Platforms (Drawn Lines)
+        ctx.strokeStyle = "#00d2ff";
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.shadowBlur = 5;
+        platforms.forEach(p => {
+            ctx.beginPath();
+            // Matter.js bodies are rectangles, we draw them
+            const vertices = p.vertices;
+            ctx.moveTo(vertices[0].x, vertices[0].y);
+            for (let j = 1; j < vertices.length; j++) ctx.lineTo(vertices[j].x, vertices[j].y);
+            ctx.lineTo(vertices[0].x, vertices[0].y);
+            ctx.fillStyle = "#00d2ff";
+            ctx.fill();
+        });
+
+        // Draw Ball
+        ctx.beginPath();
+        ctx.arc(ball.position.x, ball.position.y, 15, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff4757";
+        ctx.shadowColor = "#ff4757";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Check Win Condition
+        if (ball.position.y > gameCanvas.height) spawnBall(); // Reset if falls
+        const distToGoal = Vector.magnitude(Vector.sub(ball.position, goal.position));
+        if (distToGoal < 50) {
+            score++;
+            document.getElementById("scoreTxt").innerText = "GOALS: " + score;
+            spawnBall();
+        }
+
+        // AI Detection
+        predict();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    async function predict() {
+        if (video.currentTime !== lastVideoTime && handLandmarker) {
+            lastVideoTime = video.currentTime;
+            const results = handLandmarker.detectForVideo(video, performance.now());
+            
+            if (results.landmarks && results.landmarks.length > 0) {
+                const hand = results.landmarks[0];
+                const index = hand[8];
+                const thumb = hand[4];
+
+                const x = index.x * gameCanvas.width;
+                const y = index.y * gameCanvas.height;
+
+                const dist = Math.sqrt(Math.pow(index.x-thumb.x,2)+Math.pow(index.y-thumb.y,2));
+                const isPinching = dist < 0.06;
+
+                if (isPinching) {
+                    handleEraser(x, y);
+                } else {
+                    handleDrawing(x, y);
+                }
+            } else {
+                lastPoint = null;
+            }
+        }
+    }
+
+    function handleDrawing(x, y) {
+        document.getElementById("modeTxt").innerText = "MODE: DRAWING";
+        document.getElementById("modeTxt").style.color = "#00d2ff";
+        
+        if (lastPoint) {
+            const dist = Math.sqrt(Math.pow(x - lastPoint.x, 2) + Math.pow(y - lastPoint.y, 2));
+            if (dist > 10) { // Only add segment if moved far enough
+                const midX = (x + lastPoint.x) / 2;
+                const midY = (y + lastPoint.y) / 2;
+                const angle = Math.atan2(y - lastPoint.y, x - lastPoint.x);
+                
+                const platform = Bodies.rectangle(midX, midY, dist, 6, {
+                    isStatic: true,
+                    angle: angle,
+                    friction: 0.1
+                });
+                
+                World.add(engine.world, platform);
+                platforms.push(platform);
+                lastPoint = { x, y };
+
+                // Limit platforms to 100 for performance
+                if(platforms.length > 100) {
+                    World.remove(engine.world, platforms.shift());
+                }
+            }
+        } else {
+            lastPoint = { x, y };
+        }
+    }
+
+    function handleEraser(x, y) {
+        document.getElementById("modeTxt").innerText = "MODE: ERASER";
+        document.getElementById("modeTxt").style.color = "#ff4757";
+        lastPoint = null;
+
+        // Check which platforms are near the pinch point and remove them
+        for (let i = platforms.length - 1; i >= 0; i--) {
+            const p = platforms[i];
+            const d = Vector.magnitude(Vector.sub(p.position, {x, y}));
+            if (d < 40) {
+                World.remove(engine.world, p);
+                platforms.splice(i, 1);
+            }
+        }
+    }
+
+    // Start Button
+    document.getElementById("startBtn").onclick = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        video.srcObject = stream;
+        document.getElementById("overlay").style.display = "none";
+        setupWorld();
+    };
+
+    initAI();
+</script>
+</body>
+</html>
