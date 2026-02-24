@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Android Style Stock Manager</title>
+    
+    <!-- Google Fonts & Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- HTML5 QRCode Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        /* --- Android Material Design CSS --- */
+        :root {
+            --primary: #3F51B5;
+            --primary-variant: #303F9F;
+            --secondary: #FF4081;
+            --background: #F5F5F6;
+            --surface: #FFFFFF;
+            --error: #D32F2F;
+            --text-on-primary: #FFFFFF;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --elevation-1: 0 2px 4px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15);
+            --elevation-2: 0 4px 8px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* App Bar */
+        .app-bar {
+            background-color: var(--primary);
+            color: var(--text-on-primary);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            box-shadow: var(--elevation-2);
+            z-index: 10;
+        }
+
+        .app-bar h1 {
+            font-size: 20px;
+            font-weight: 500;
+            margin-left: 16px;
+            flex-grow: 1;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Views */
+        .view {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 90px;
+        }
+        .view.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inventory List */
+        .product-card {
+            background-color: var(--surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--elevation-1);
+            position: relative;
+            overflow: hidden;
+        }
+        .product-card h3 {
+            font-size: 18px;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+        .product-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .product-card .price {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 18px;
+        }
+        .product-card .barcode-label {
+            font-size: 11px;
+            color: #999;
+            margin-top: 12px;
+            background: #eee;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        /* Forms */
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--primary);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #fafafa;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background-color: #fff;
+            border-width: 2px;
+            padding: 13px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: var(--elevation-1);
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-primary:active {
+            box-shadow: var(--elevation-2);
+            background-color: var(--primary-variant);
+        }
+        .btn-danger {
+            background-color: var(--error);
+        }
+        .btn-danger:active {
+            background-color: #B71C1C;
+        }
+
+        /* Floating Action Button (FAB) */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--secondary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--elevation-2);
+            border: none;
+            cursor: pointer;
+            z-index: 100;
+            transition: transform 0.2s;
+        }
+        .fab .material-icons {
+            font-size: 28px;
+        }
+        .fab:active {
+            transform: scale(0.9);
+        }
+
+        /* Scanner Container */
+        #reader {
+            width: 100%;
+            min-height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--elevation-1);
+            background: #000;
+            margin-bottom: 20px;
+        }
+        #reader video {
+            object-fit: cover;
+        }
+
+        /* Detail View */
+        .detail-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 30px 20px;
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: var(--elevation-1);
+        }
+        .detail-header .material-icons {
+            font-size: 70px;
+            color: #4CAF50;
+            margin-bottom: 12px;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- App Bar -->
+    <header class="app-bar">
+        <button class="icon-btn" id="btn-back" style="display: none;">
+            <span class="material-icons">arrow_back</span>
+        </button>
+        <h1 id="app-title">My Stock</h1>
+    </header>
+
+    <!-- View 1: Inventory (Home) -->
+    <main id="view-inventory" class="view active">
+        <div id="inventory-list">
+            <div class="loader">Loading your stock...</div>
+        </div>
+    </main>
+
+    <!-- View 2: Scanner -->
+    <main id="view-scanner" class="view">
+        <p style="text-align: center; margin-bottom: 16px; color: var(--text-secondary); font-weight: 500;">
+            Point your camera at a barcode
+        </p>
+        <!-- The camera will load inside this div -->
+        <div id="reader"></div>
+        <button class="btn-primary btn-danger" id="btn-cancel-scan">Cancel Scanning</button>
+    </main>
+
+    <!-- View 3: Add New Product -->
+    <main id="view-add-product" class="view">
+        <div class="product-card">
+            <h3 style="color: var(--primary); margin-bottom: 8px;">New Product Detected!</h3>
+            <p style="margin-bottom: 20px; color: var(--text-secondary);">
+                Barcode: <strong id="new-barcode-text" style="color: var(--text-primary);"></strong>
+            </p>
+            
+            <form id="add-product-form">
+                <div class="input-group">
+                    <label>Product Name</label>
+                    <input type="text" id="input-name" required placeholder="e.g. Coca Cola 500ml">
+                </div>
+                <div class="input-group">
+                    <label>Description</label>
+                    <textarea id="input-desc" rows="3" required placeholder="Enter product details..."></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Price ($)</label>
+                    <input type="number" step="0.01" id="input-price" required placeholder="0.00">
+                </div>
+                <button type="submit" class="btn-primary">Save to Database</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- View 4: Product Details (Scanned Existing) -->
+    <main id="view-details" class="view">
+        <div class="detail-header">
+            <span class="material-icons">check_circle</span>
+            <h2 id="detail-name">Product Name</h2>
+            <p style="color: var(--text-secondary); margin-top: 8px;">
+                Barcode: <strong id="detail-barcode" style="color: var(--text-primary);"></strong>
+            </p>
+        </div>
+        
+        <div class="product-card">
+            <label style="font-size: 13px; color: var(--primary); font-weight: 500;">Description</label>
+            <p id="detail-desc" style="margin-top: 6px; font-size: 16px; color: var(--text-primary); line-height: 1.5;"></p>
+            
+            <label style="font-size: 13px; color: var(--primary); font-weight: 500; display: block; margin-top: 20px;">Price</label>
+            <p id="detail-price" style="margin-top: 6px; font-size: 26px; font-weight: bold; color: var(--text-primary);"></p>
+        </div>
+    </main>
+
+    <!-- Floating Action Button for Scanning -->
+    <button class="fab" id="fab-scan">
+        <span class="material-icons">qr_code_scanner</span>
+    </button>
+
+    <!-- App Logic & Firebase Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, child, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Firebase Configuration (Your exact config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
+            authDomain: "studio-vddd5.firebaseapp.com",
+            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
+            projectId: "studio-vddd5",
+            storageBucket: "studio-vddd5.firebasestorage.app",
+            messagingSenderId: "679230106233",
+            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // UI Elements
+        const views = {
+            inventory: document.getElementById('view-inventory'),
+            scanner: document.getElementById('view-scanner'),
+            addProduct: document.getElementById('view-add-product'),
+            details: document.getElementById('view-details')
+        };
+        const btnBack = document.getElementById('btn-back');
+        const appTitle = document.getElementById('app-title');
+        const fabScan = document.getElementById('fab-scan');
+        const inventoryList = document.getElementById('inventory-list');
+        
+        // State
+        let currentBarcode = "";
+        let html5QrCode = null;
+
+        // --- Navigation Logic ---
+        function navigateTo(viewName, title, showBackBtn = true, showFab = false) {
+            Object.values(views).forEach(v => v.classList.remove('active'));
+            views[viewName].classList.add('active');
+            
+            appTitle.innerText = title;
+            btnBack.style.display = showBackBtn ? 'flex' : 'none';
+            fabScan.style.display = showFab ? 'flex' : 'none';
+        }
+
+        // --- Safe Camera Stop Logic (FIXED) ---
+        function stopCameraSafely(callback) {
+            if (html5QrCode) {
+                // We use .stop() to shut off the camera, THEN .clear() to wipe the canvas
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                    if(callback) callback();
+                }).catch(err => {
+                    console.error("Camera Stop Error", err);
+                    html5QrCode = null;
+                    if(callback) callback();
+                });
+            } else {
+                if(callback) callback();
+            }
+        }
+
+        // Go Home Action
+        function goHome() {
+            stopCameraSafely(() => {
+                navigateTo('inventory', 'My Stock', false, true);
+            });
+        }
+        
+        btnBack.addEventListener('click', goHome);
+        document.getElementById('btn-cancel-scan').addEventListener('click', goHome);
+
+        // --- Firebase: Load Realtime Inventory ---
+        const productsRef = ref(db, 'products');
+        onValue(productsRef, (snapshot) => {
+            inventoryList.innerHTML = ''; 
+            const data = snapshot.val();
+            
+            if (data) {
+                Object.keys(data).reverse().forEach(key => {
+                    const product = data[key];
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `
+                        <h3>${product.name}</h3>
+                        <p>${product.description.substring(0, 50)}${product.description.length > 50 ? '...' : ''}</p>
+                        <div class="price">$${parseFloat(product.price).toFixed(2)}</div>
+                        <div class="barcode-label">Barcode: ${key}</div>
+                    `;
+                    // Tap a product on home screen to view full details
+                    card.addEventListener('click', () => {
+                        stopCameraSafely(() => {
+                            showProductDetails(key, product);
+                        });
+                    });
+                    inventoryList.appendChild(card);
+                });
+            } else {
+                inventoryList.innerHTML = '<div class="loader">No products in stock.<br>Tap the scanner button to add one!</div>';
+            }
+        });
+
+        // --- Scanner Start Logic (FIXED) ---
+        fabScan.addEventListener('click', () => {
+            navigateTo('scanner', 'Scan Barcode', true, false);
+            
+            // Critical Fix: Wait 300ms for UI to open before starting camera so it measures width/height correctly
+            setTimeout(() => {
+                html5QrCode = new Html5Qrcode("reader");
+                const config = { fps: 10, qrbox: { width: 250, height: 200 } };
+
+                html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(err => {
+                    alert("Cannot access camera. Make sure you accepted camera permissions and are running this on a local server or HTTPS.");
+                    goHome();
+                });
+            }, 300);
+        });
+
+        // Scan Success Action
+        function onScanSuccess(decodedText) {
+            appTitle.innerText = "Processing...";
+            
+            // Stop camera safely FIRST, then check database
+            stopCameraSafely(() => {
+                // Sanitize barcode (Firebase keys cannot contain . # $ [ ])
+                currentBarcode = decodedText.replace(/[.#$\[\]]/g, '').trim();
+                checkProductInDatabase(currentBarcode);
+            });
+        }
+
+        // --- Database Checking Logic ---
+        function checkProductInDatabase(barcode) {
+            appTitle.innerText = "Checking Database...";
+            const dbRef = ref(getDatabase());
+            
+            get(child(dbRef, `products/${barcode}`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    // SECOND TIME: Automatically detect and show details
+                    showProductDetails(barcode, snapshot.val());
+                } else {
+                    // FIRST TIME: Doesn't exist, show Add Product form
+                    showAddForm(barcode);
+                }
+            }).catch((error) => {
+                console.error("Database Error:", error);
+                alert("Error connecting to database. Check your internet connection.");
+                goHome();
+            });
+        }
+
+        // --- Show Details UI ---
+        function showProductDetails(barcode, productData) {
+            document.getElementById('detail-name').innerText = productData.name;
+            document.getElementById('detail-barcode').innerText = barcode;
+            document.getElementById('detail-desc').innerText = productData.description;
+            document.getElementById('detail-price').innerText = "$" + parseFloat(productData.price).toFixed(2);
+            
+            navigateTo('details', 'Product Details', true, true);
+        }
+
+        // --- Show Add Form UI ---
+        function showAddForm(barcode) {
+            document.getElementById('new-barcode-text').innerText = barcode;
+            document.getElementById('add-product-form').reset();
+            navigateTo('addProduct', 'Add New Product', true, false);
+        }
+
+        // --- Save Form to Database ---
+        document.getElementById('add-product-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            const name = document.getElementById('input-name').value;
+            const desc = document.getElementById('input-desc').value;
+            const price = document.getElementById('input-price').value;
+
+            // Push to Firebase Realtime Database
+            set(ref(db, 'products/' + currentBarcode), {
+                name: name,
+                description: desc,
+                price: price,
+                addedAt: new Date().toISOString()
+            }).then(() => {
+                btn.innerText = "Save to Database";
+                btn.disabled = false;
+                
+                // Show newly saved product automatically
+                showProductDetails(currentBarcode, { name: name, description: desc, price: price });
+            }).catch((error) => {
+                alert("Error saving: " + error.message);
+                btn.innerText = "Save to Database";
+                btn.disabled = false;
+            });
+        });
+
+        // Boot App
+        goHome();
+    </script>
+</body>
+</html>
