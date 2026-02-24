@@ -3,678 +3,611 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Coordinate Geometry – Dark Math Pro</title>
+    <title>Stock Manager Pro</title>
     
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts & Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- HTML5 QRCode Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <!-- PDF Generation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        /* 
-         * THEME: Dark Math Pro 
-         * CSS Variables & Global Styles
-         */
+        /* --- Android Material Design CSS --- */
         :root {
-            --bg-color: #0d1117;
-            --surface-color: #161b22;
-            --input-bg: #21262d;
-            --border-color: #30363d;
-            --accent-primary: #2f81f7; /* Neon Blue */
-            --accent-secondary: #2ea043; /* Neon Green */
-            --text-primary: #f0f6fc;
-            --text-secondary: #8b949e;
-            --grid-color: rgba(255, 255, 255, 0.1);
-            --axis-color: #f0f6fc;
-            --danger-color: #da3633;
-            
-            --font-ui: 'Poppins', sans-serif;
-            --font-math: 'Roboto Mono', monospace;
-            
-            --app-height: 100vh;
+            --primary: #00796B; /* Teal Material */
+            --primary-variant: #004D40;
+            --secondary: #FFC107; /* Amber */
+            --background: #F0F2F5;
+            --surface: #FFFFFF;
+            --error: #D32F2F;
+            --text-on-primary: #FFFFFF;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --elevation-1: 0 2px 4px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15);
+            --elevation-2: 0 4px 8px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.2);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            font-family: 'Roboto', sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            background-color: var(--bg-color);
+            background-color: var(--background);
             color: var(--text-primary);
-            font-family: var(--font-ui);
-            height: var(--app-height);
-            width: 100vw;
-            overflow: hidden;
+            height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
-        /* HEADER */
-        header {
-            background-color: var(--surface-color);
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--border-color);
+        /* App Bar */
+        .app-bar {
+            background-color: var(--primary);
+            color: var(--text-on-primary);
+            height: 60px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            padding: 0 16px;
+            box-shadow: var(--elevation-2);
             z-index: 10;
         }
 
-        .app-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .app-bar h1 {
+            font-size: 20px;
+            font-weight: 500;
+            margin-left: 16px;
+            flex-grow: 1;
         }
 
-        .app-title i {
-            color: var(--accent-primary);
-        }
-
-        /* CANVAS AREA */
-        #canvas-container {
-            flex: 1;
-            position: relative;
-            background-color: #000;
-            overflow: hidden;
-            cursor: crosshair;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* FLOATING ACTION BUTTONS (FAB) */
-        .fab-container {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .fab {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
+        .icon-btn {
+            background: none;
             border: none;
-            background: var(--surface-color);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            font-size: 1.2rem;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-            transition: transform 0.2s, background 0.2s;
+            transition: background 0.2s;
         }
 
-        .fab:active {
-            transform: scale(0.95);
-            background: var(--input-bg);
-        }
+        .icon-btn:active { background-color: rgba(255, 255, 255, 0.2); }
 
-        /* CONTROL PANEL */
-        .control-panel {
-            background-color: var(--surface-color);
-            padding: 15px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
-            z-index: 20;
+        /* Views */
+        .view {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 90px;
         }
+        .view.active { display: block; animation: fadeIn 0.3s ease; }
 
-        /* INPUT AREA */
-        .input-group {
-            position: relative;
-        }
-
-        .coord-input {
-            width: 100%;
-            background: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--accent-primary);
-            padding: 12px 15px;
-            border-radius: 8px;
-            font-family: var(--font-math);
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-
-        .coord-input::placeholder {
-            color: var(--text-secondary);
-            opacity: 0.5;
-        }
-
-        .coord-input:focus {
-            border-color: var(--accent-primary);
-        }
-
-        /* ACTION BUTTONS GRID */
-        .actions-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-
-        .btn {
-            background: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-family: var(--font-ui);
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
-
-        .btn i {
-            font-size: 1.1rem;
-            margin-bottom: 2px;
-        }
-
-        .btn:active {
-            transform: translateY(2px);
-        }
-
-        .btn.primary {
-            background: rgba(47, 129, 247, 0.15);
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-            grid-column: span 2; /* Plot takes 2 slots */
-        }
-
-        .btn.danger {
-            color: var(--danger-color);
-            border-color: rgba(218, 54, 51, 0.3);
-        }
-
-        /* RESULT CARD */
-        .result-card {
-            background: var(--input-bg);
-            border-radius: 8px;
-            padding: 10px 15px;
-            display: none; /* Hidden by default */
-            font-size: 0.9rem;
-            border-left: 3px solid var(--accent-secondary);
-            animation: slideUp 0.3s ease-out;
-        }
-
-        .result-card strong {
-            color: var(--accent-secondary);
-            font-family: var(--font-math);
-        }
-
-        @keyframes slideUp {
+        @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Mobile specific adjustments */
-        @media (max-width: 480px) {
-            .actions-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
-            .btn span {
-                font-size: 0.7rem;
-            }
-            .btn.primary {
-                grid-column: span 4; /* Full width on mobile for Plot */
-            }
-            .actions-grid .btn:not(.primary) {
-                grid-column: span 1;
-            }
+        /* Dashboard & Search */
+        .dashboard-card {
+            background: var(--primary-variant);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            box-shadow: var(--elevation-1);
         }
+        .dash-stat { text-align: center; }
+        .dash-stat h4 { font-size: 12px; font-weight: 400; opacity: 0.8; margin-bottom: 4px; }
+        .dash-stat p { font-size: 18px; font-weight: 700; }
+        
+        .search-bar {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 24px;
+            border: none;
+            box-shadow: var(--elevation-1);
+            margin-bottom: 16px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        /* Inventory List */
+        .product-card {
+            background-color: var(--surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--elevation-1);
+            position: relative;
+            overflow: hidden;
+        }
+        .product-card h3 { font-size: 18px; margin-bottom: 6px; color: var(--text-primary); }
+        .product-card p { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+        
+        .price-qty-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .price { font-weight: 700; color: var(--primary); font-size: 16px; }
+        .qty-badge { background: var(--secondary); color: #000; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; }
+
+        /* Forms */
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 13px; color: var(--primary); margin-bottom: 6px; font-weight: 500; }
+        .input-group input, .input-group textarea {
+            width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background-color: #fafafa;
+        }
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none; border-color: var(--primary); border-width: 2px; padding: 13px;
+        }
+
+        .btn {
+            width: 100%; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: 500;
+            text-transform: uppercase; letter-spacing: 1px; box-shadow: var(--elevation-1); cursor: pointer; margin-top: 10px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn:active { box-shadow: var(--elevation-2); transform: scale(0.98); }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: #ECEFF1; color: var(--text-primary); }
+        .btn-danger { background-color: var(--error); color: white; }
+
+        /* Stock Controller */
+        .stock-controller {
+            display: flex; align-items: center; justify-content: center; gap: 16px; margin: 20px 0;
+            background: #f5f5f5; padding: 12px; border-radius: 12px;
+        }
+        .btn-circle {
+            width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--primary); color: white;
+            font-size: 24px; display: flex; align-items: center; justify-content: center; box-shadow: var(--elevation-1);
+        }
+        .stock-val { font-size: 24px; font-weight: bold; width: 60px; text-align: center; }
+
+        /* Floating Action Button (FAB) */
+        .fab {
+            position: fixed; bottom: 24px; right: 24px; width: 60px; height: 60px; background-color: var(--secondary);
+            color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--elevation-2); border: none; cursor: pointer; z-index: 100; transition: transform 0.2s;
+        }
+        .fab .material-icons { font-size: 28px; }
+        .fab:active { transform: scale(0.9); }
+
+        /* Scanner */
+        #reader { width: 100%; min-height: 300px; border-radius: 12px; overflow: hidden; box-shadow: var(--elevation-1); background: #000; margin-bottom: 20px; }
+        #reader video { object-fit: cover; }
+
+        /* Detail View Info */
+        .detail-info { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 12px 0; }
+        .detail-info.net-price { border-bottom: none; background: #e8f5e9; padding: 16px; border-radius: 8px; margin-top: 12px;}
+        
+        .loader { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
-    <header>
-        <div class="app-title">
-            <i class="fas fa-cube"></i>
-            <span>Dark Math Pro</span>
-        </div>
-        <div class="header-actions">
-            <i class="fas fa-info-circle" style="color: var(--text-secondary); cursor: pointer;" onclick="alert('Enter points like (2,4) or multiple like (1,1), (3,5).')"></i>
-        </div>
+    <!-- App Bar -->
+    <header class="app-bar">
+        <button class="icon-btn" id="btn-back" style="display: none;">
+            <span class="material-icons">arrow_back</span>
+        </button>
+        <h1 id="app-title">Stock Manager</h1>
     </header>
 
-    <!-- MAIN GRAPH AREA -->
-    <div id="canvas-container">
-        <canvas id="graphCanvas"></canvas>
+    <!-- View 1: Inventory (Home) -->
+    <main id="view-inventory" class="view active">
         
-        <!-- Zoom Controls -->
-        <div class="fab-container">
-            <button class="fab" id="btnZoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
-            <button class="fab" id="btnZoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
-            <button class="fab" id="btnResetView" title="Reset View"><i class="fas fa-compress-arrows-alt"></i></button>
+        <div class="dashboard-card" id="export-inventory-area">
+            <div class="dash-stat">
+                <h4>Total Items</h4>
+                <p id="dash-items">0</p>
+            </div>
+            <div class="dash-stat">
+                <h4>Total Value</h4>
+                <p id="dash-value">₹0.00</p>
+            </div>
         </div>
-    </div>
 
-    <!-- CONTROL PANEL -->
-    <div class="control-panel">
+        <input type="text" id="search-bar" class="search-bar" placeholder="Search products by name...">
+        <button class="btn btn-secondary" id="btn-export-all" style="margin-bottom: 16px;">
+            <span class="material-icons">picture_as_pdf</span> Download Inventory PDF
+        </button>
+
+        <div id="inventory-list">
+            <div class="loader">Loading your stock...</div>
+        </div>
+    </main>
+
+    <!-- View 2: Scanner -->
+    <main id="view-scanner" class="view">
+        <p style="text-align: center; margin-bottom: 16px; color: var(--text-secondary);">Point camera at a barcode</p>
+        <div id="reader"></div>
+        <button class="btn btn-danger" id="btn-cancel-scan">Cancel</button>
+    </main>
+
+    <!-- View 3: Add New Product -->
+    <main id="view-add-product" class="view">
+        <div class="product-card">
+            <h3 style="color: var(--primary);">New Product Detected!</h3>
+            <p style="margin-bottom: 16px; font-size: 12px;">Barcode: <strong id="new-barcode-text"></strong></p>
+            
+            <form id="add-product-form">
+                <div class="input-group">
+                    <label>Product Name</label>
+                    <input type="text" id="input-name" required placeholder="e.g. Rice 1kg">
+                </div>
+                <div class="input-group">
+                    <label>Description</label>
+                    <textarea id="input-desc" rows="2" placeholder="Brand, size, etc."></textarea>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <div class="input-group" style="flex: 1;">
+                        <label>Price Per Item (₹)</label>
+                        <input type="number" step="0.01" id="input-price" required placeholder="0.00">
+                    </div>
+                    <div class="input-group" style="flex: 1;">
+                        <label>Initial Quantity</label>
+                        <input type="number" id="input-qty" required value="1" min="0">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Product</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- View 4: Product Details -->
+    <main id="view-details" class="view">
         
-        <!-- Input -->
-        <div class="input-group">
-            <input type="text" id="coordInput" class="coord-input" placeholder="(x, y) e.g. (2, 3), (-1, 4)" autocomplete="off">
+        <!-- Printable Area -->
+        <div id="printable-details" class="product-card" style="padding: 24px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <span class="material-icons" style="font-size: 48px; color: var(--primary);">inventory_2</span>
+                <h2 id="detail-name" style="margin-top: 8px;">Product Name</h2>
+                <p style="color: #888; font-size: 12px;">Barcode: <span id="detail-barcode"></span></p>
+            </div>
+            
+            <p id="detail-desc" style="margin-bottom: 20px; color: var(--text-secondary); text-align: center;"></p>
+            
+            <div class="detail-info">
+                <span>Unit Price</span>
+                <strong style="font-size: 18px;">₹<span id="detail-price">0.00</span></strong>
+            </div>
+            <div class="detail-info">
+                <span>Current Stock</span>
+                <strong style="font-size: 18px;" id="detail-qty-display">0</strong>
+            </div>
+            <div class="detail-info net-price">
+                <span style="color: var(--primary); font-weight: bold;">Net Total Value</span>
+                <strong style="font-size: 22px; color: var(--primary);">₹<span id="detail-net-price">0.00</span></strong>
+            </div>
         </div>
 
-        <!-- Result Display -->
-        <div id="resultCard" class="result-card">
-            <span id="resultText">Result will appear here...</span>
-        </div>
+        <!-- Action Area (Not printed in PDF) -->
+        <div style="margin-top: 20px;">
+            <p style="text-align: center; font-weight: 500; color: var(--text-secondary);">Update Stock Quantity</p>
+            <div class="stock-controller">
+                <button class="btn-circle" id="btn-minus">-</button>
+                <div class="stock-val" id="controller-qty">0</div>
+                <button class="btn-circle" id="btn-plus">+</button>
+            </div>
 
-        <!-- Buttons -->
-        <div class="actions-grid">
-            <button class="btn primary" id="btnPlot">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>Plot Points</span>
-            </button>
-            <button class="btn" id="btnLine">
-                <i class="fas fa-slash"></i>
-                <span>Connect</span>
-            </button>
-            <button class="btn" id="btnDist">
-                <i class="fas fa-ruler-horizontal"></i>
-                <span>Distance</span>
-            </button>
-            <button class="btn" id="btnMid">
-                <i class="fas fa-dot-circle"></i>
-                <span>Midpoint</span>
-            </button>
-            <button class="btn danger" id="btnClear" style="grid-column: span 4; margin-top: 5px;">
-                <i class="fas fa-trash"></i>
-                <span>Clear All</span>
+            <button class="btn btn-secondary" id="btn-export-single">
+                <span class="material-icons">picture_as_pdf</span> Save as PDF
             </button>
         </div>
-    </div>
+    </main>
 
-    <script>
-        /**
-         * CORE LOGIC - Smart Coordinate Geometry App
-         */
+    <!-- Floating Action Button for Scanning -->
+    <button class="fab" id="fab-scan">
+        <span class="material-icons">qr_code_scanner</span>
+    </button>
 
-        // State Management
-        const state = {
-            points: [],         // Array of {x, y, label}
-            lines: [],          // Array of lines to draw
-            scale: 40,          // Pixels per unit
-            offsetX: 0,         // Pan X
-            offsetY: 0,         // Pan Y
-            isDragging: false,
-            lastMouseX: 0,
-            lastMouseY: 0,
-            showMidpoint: null, // Temporary midpoint storage
-            highlightLine: null // For highlighting distance
+    <!-- App Logic & Firebase Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, child, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
+            authDomain: "studio-vddd5.firebaseapp.com",
+            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
+            projectId: "studio-vddd5",
+            storageBucket: "studio-vddd5.firebasestorage.app",
+            messagingSenderId: "679230106233",
+            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
         };
 
-        // DOM Elements
-        const canvas = document.getElementById('graphCanvas');
-        const ctx = canvas.getContext('2d');
-        const inputField = document.getElementById('coordInput');
-        const resultCard = document.getElementById('resultCard');
-        const resultText = document.getElementById('resultText');
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-        // --- CANVAS ENGINE ---
+        // UI Elements
+        const views = {
+            inventory: document.getElementById('view-inventory'),
+            scanner: document.getElementById('view-scanner'),
+            addProduct: document.getElementById('view-add-product'),
+            details: document.getElementById('view-details')
+        };
+        const btnBack = document.getElementById('btn-back');
+        const appTitle = document.getElementById('app-title');
+        const fabScan = document.getElementById('fab-scan');
+        const inventoryList = document.getElementById('inventory-list');
+        const searchBar = document.getElementById('search-bar');
+        
+        let currentBarcode = "";
+        let currentProductData = null;
+        let html5QrCode = null;
+        let allProducts = {}; // Store for searching
 
-        function initCanvas() {
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            draw();
+        // --- Navigation ---
+        function navigateTo(viewName, title, showBackBtn = true, showFab = false) {
+            Object.values(views).forEach(v => v.classList.remove('active'));
+            views[viewName].classList.add('active');
+            appTitle.innerText = title;
+            btnBack.style.display = showBackBtn ? 'flex' : 'none';
+            fabScan.style.display = showFab ? 'flex' : 'none';
         }
 
-        function resizeCanvas() {
-            const container = document.getElementById('canvas-container');
-            // Handle DPI for sharp text on mobile
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = container.clientWidth * dpr;
-            canvas.height = container.clientHeight * dpr;
-            
-            // Normalize coordinate system
-            ctx.scale(dpr, dpr);
-            
-            // Adjust CSS size
-            canvas.style.width = container.clientWidth + 'px';
-            canvas.style.height = container.clientHeight + 'px';
-            
-            draw();
-        }
-
-        // Coordinate Converters
-        // World (x,y) -> Screen Pixels
-        function toScreenX(x) {
-            const centerX = canvas.clientWidth / 2 + state.offsetX;
-            return centerX + (x * state.scale);
-        }
-
-        function toScreenY(y) {
-            const centerY = canvas.clientHeight / 2 + state.offsetY;
-            return centerY - (y * state.scale); // Invert Y for Cartesian
-        }
-
-        // Main Render Loop
-        function draw() {
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-
-            // 1. Clear Canvas (Pure Black)
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(0, 0, width, height);
-
-            // 2. Draw Grid
-            drawGrid(width, height);
-
-            // 3. Draw Axes
-            drawAxes(width, height);
-
-            // 4. Draw Lines (Connected Points)
-            if (state.lines.length > 0) {
-                ctx.beginPath();
-                ctx.strokeStyle = "rgba(47, 129, 247, 0.6)"; // Neon Blue
-                ctx.lineWidth = 2;
-                state.lines.forEach((line, index) => {
-                    const startX = toScreenX(line.p1.x);
-                    const startY = toScreenY(line.p1.y);
-                    const endX = toScreenX(line.p2.x);
-                    const endY = toScreenY(line.p2.y);
-                    
-                    if (index === 0) ctx.moveTo(startX, startY);
-                    ctx.lineTo(endX, endY);
+        function stopCameraSafely(callback) {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                    if(callback) callback();
+                }).catch(() => {
+                    html5QrCode = null;
+                    if(callback) callback();
                 });
-                ctx.stroke();
+            } else {
+                if(callback) callback();
+            }
+        }
+
+        function goHome() {
+            stopCameraSafely(() => {
+                navigateTo('inventory', 'My Stock', false, true);
+                renderInventory(allProducts); // Reset search view
+            });
+        }
+        
+        btnBack.addEventListener('click', goHome);
+        document.getElementById('btn-cancel-scan').addEventListener('click', goHome);
+
+        // --- Firebase: Realtime Inventory & Dashboard ---
+        const productsRef = ref(db, 'products');
+        onValue(productsRef, (snapshot) => {
+            allProducts = snapshot.val() || {};
+            renderInventory(allProducts);
+        });
+
+        function renderInventory(data) {
+            inventoryList.innerHTML = ''; 
+            let totalItems = 0;
+            let totalValue = 0;
+
+            const keys = Object.keys(data);
+            if (keys.length > 0) {
+                keys.reverse().forEach(key => {
+                    const p = data[key];
+                    const qty = parseInt(p.quantity) || 0;
+                    const price = parseFloat(p.price) || 0;
+                    
+                    totalItems += qty;
+                    totalValue += (qty * price);
+
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between;">
+                            <h3>${p.name}</h3>
+                            <span class="qty-badge">Qty: ${qty}</span>
+                        </div>
+                        <p>${p.description.substring(0, 40)}${p.description.length > 40 ? '...' : ''}</p>
+                        <div class="price-qty-row">
+                            <span style="font-size: 11px; color: #999;">Bar: ${key}</span>
+                            <div class="price">₹${price.toFixed(2)}</div>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => {
+                        stopCameraSafely(() => showProductDetails(key, p));
+                    });
+                    inventoryList.appendChild(card);
+                });
+            } else {
+                inventoryList.innerHTML = '<div class="loader">No products found.</div>';
             }
 
-            // 5. Draw Special Highlights (Distance Line)
-            if (state.highlightLine) {
-                ctx.beginPath();
-                ctx.strokeStyle = "#2ea043"; // Neon Green
-                ctx.lineWidth = 3;
-                ctx.moveTo(toScreenX(state.highlightLine.p1.x), toScreenY(state.highlightLine.p1.y));
-                ctx.lineTo(toScreenX(state.highlightLine.p2.x), toScreenY(state.highlightLine.p2.y));
-                ctx.stroke();
-            }
+            // Update Dashboard
+            document.getElementById('dash-items').innerText = totalItems;
+            document.getElementById('dash-value').innerText = '₹' + totalValue.toFixed(2);
+        }
 
-            // 6. Draw Points
-            state.points.forEach(p => {
-                const screenX = toScreenX(p.x);
-                const screenY = toScreenY(p.y);
+        // --- Search Functionality ---
+        searchBar.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = {};
+            Object.keys(allProducts).forEach(key => {
+                if(allProducts[key].name.toLowerCase().includes(term) || key.includes(term)) {
+                    filtered[key] = allProducts[key];
+                }
+            });
+            renderInventory(filtered);
+        });
 
-                // Glow effect
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = p.isMidpoint ? "#da3633" : "#2f81f7";
+        // --- Scanner Logic ---
+        fabScan.addEventListener('click', () => {
+            navigateTo('scanner', 'Scan Barcode', true, false);
+            setTimeout(() => {
+                html5QrCode = new Html5Qrcode("reader");
+                const config = { fps: 10, qrbox: { width: 250, height: 200 } };
+                html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(err => {
+                    alert("Camera error. Please ensure local server or HTTPS is used.");
+                    goHome();
+                });
+            }, 300);
+        });
 
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
-                ctx.fillStyle = p.isMidpoint ? "#da3633" : "#2f81f7"; // Red for midpoint, Blue for regular
-                ctx.fill();
-                
-                // Reset glow for text
-                ctx.shadowBlur = 0;
-
-                // Label
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "12px Roboto Mono";
-                ctx.fillText(`(${p.x}, ${p.y})`, screenX + 10, screenY - 10);
+        function onScanSuccess(decodedText) {
+            appTitle.innerText = "Processing...";
+            stopCameraSafely(() => {
+                currentBarcode = decodedText.replace(/[.#$\[\]]/g, '').trim();
+                checkProductInDatabase(currentBarcode);
             });
         }
 
-        function drawGrid(w, h) {
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)"; // Very faint
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-
-            // Calculate logical visible area
-            const startCol = Math.floor((-state.offsetX - w/2) / state.scale);
-            const endCol = Math.ceil((-state.offsetX + w/2) / state.scale);
-            const startRow = Math.floor((state.offsetY - h/2) / state.scale);
-            const endRow = Math.ceil((state.offsetY + h/2) / state.scale);
-
-            // Vertical lines
-            for (let i = startCol; i <= endCol; i++) {
-                const x = toScreenX(i);
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, h);
-            }
-
-            // Horizontal lines
-            for (let i = startRow; i <= endRow; i++) {
-                const y = toScreenY(i);
-                ctx.moveTo(0, y);
-                ctx.lineTo(w, y);
-            }
-            ctx.stroke();
+        function checkProductInDatabase(barcode) {
+            appTitle.innerText = "Checking...";
+            get(child(ref(db), `products/${barcode}`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    showProductDetails(barcode, snapshot.val());
+                } else {
+                    showAddForm(barcode);
+                }
+            }).catch(() => {
+                alert("Database connection error."); goHome();
+            });
         }
 
-        function drawAxes(w, h) {
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-
-            const originX = toScreenX(0);
-            const originY = toScreenY(0);
-
-            // Y Axis
-            ctx.moveTo(originX, 0);
-            ctx.lineTo(originX, h);
-
-            // X Axis
-            ctx.moveTo(0, originY);
-            ctx.lineTo(w, originY);
-
-            ctx.stroke();
+        // --- Add Product UI & Save ---
+        function showAddForm(barcode) {
+            document.getElementById('new-barcode-text').innerText = barcode;
+            document.getElementById('add-product-form').reset();
+            navigateTo('addProduct', 'Add New Product', true, false);
         }
 
-        // --- INTERACTION HANDLERS ---
-
-        // Pan Logic (Mouse & Touch)
-        function startPan(x, y) {
-            state.isDragging = true;
-            state.lastMouseX = x;
-            state.lastMouseY = y;
-        }
-
-        function doPan(x, y) {
-            if (!state.isDragging) return;
-            const dx = x - state.lastMouseX;
-            const dy = y - state.lastMouseY;
-            state.offsetX += dx;
-            state.offsetY += dy;
-            state.lastMouseX = x;
-            state.lastMouseY = y;
-            draw();
-        }
-
-        function endPan() {
-            state.isDragging = false;
-        }
-
-        // Mouse Events
-        canvas.addEventListener('mousedown', e => startPan(e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => doPan(e.clientX, e.clientY));
-        window.addEventListener('mouseup', endPan);
-
-        // Touch Events (Mobile)
-        canvas.addEventListener('touchstart', e => {
-            if(e.touches.length === 1) {
-                startPan(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        });
-        canvas.addEventListener('touchmove', e => {
-            if(e.touches.length === 1) {
-                e.preventDefault(); // Stop page scrolling
-                doPan(e.touches[0].clientX, e.touches[0].clientY);
-            }
-        });
-        canvas.addEventListener('touchend', endPan);
-
-        // --- BUTTON ACTIONS ---
-
-        // Helper: Parse Input String "(1,2), (3,4)"
-        function parsePoints() {
-            const raw = inputField.value;
-            // Regex to find coordinate pairs
-            const regex = /\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)/g;
-            let match;
-            const newPoints = [];
-
-            while ((match = regex.exec(raw)) !== null) {
-                newPoints.push({
-                    x: parseFloat(match[1]),
-                    y: parseFloat(match[2]),
-                    isMidpoint: false
-                });
-            }
-            return newPoints;
-        }
-
-        function showResult(text, isError = false) {
-            resultText.innerHTML = text;
-            resultCard.style.display = 'block';
-            resultCard.style.borderLeftColor = isError ? 'var(--danger-color)' : 'var(--accent-secondary)';
-            if(isError) {
-                resultText.style.color = 'var(--danger-color)';
-            } else {
-                resultText.style.color = 'var(--text-primary)';
-            }
-        }
-
-        // 1. Plot Points
-        document.getElementById('btnPlot').addEventListener('click', () => {
-            const pts = parsePoints();
-            if (pts.length === 0) {
-                showResult("Invalid format. Use (x,y). Example: (2,4)", true);
-                return;
-            }
-            state.points = pts;
-            state.lines = []; // Reset lines
-            state.highlightLine = null;
-            draw();
-            showResult(`${pts.length} point(s) plotted successfully.`);
-        });
-
-        // 2. Connect Points (Line)
-        document.getElementById('btnLine').addEventListener('click', () => {
-            if (state.points.length < 2) {
-                showResult("Plot at least 2 points first.", true);
-                return;
-            }
-            state.lines = [];
-            // Create segments between consecutive points
-            for (let i = 0; i < state.points.length - 1; i++) {
-                state.lines.push({ p1: state.points[i], p2: state.points[i+1] });
-            }
-            draw();
-            showResult("Points connected.");
-        });
-
-        // 3. Distance Calculation
-        document.getElementById('btnDist').addEventListener('click', () => {
-            if (state.points.length < 2) {
-                showResult("Need 2 points to calculate distance.", true);
-                return;
-            }
-            
-            // Take the last two points for calculation logic
-            const p1 = state.points[state.points.length - 2];
-            const p2 = state.points[state.points.length - 1];
-
-            const dx = p2.x - p1.x;
-            const dy = p2.y - p1.y;
-            const dist = Math.sqrt(dx*dx + dy*dy).toFixed(2);
-
-            state.highlightLine = { p1, p2 };
-            draw();
-            
-            const mathHTML = `d = √(${p2.x} - ${p1.x})² + (${p2.y} - ${p1.y})²<br><strong>Distance = ${dist} units</strong>`;
-            showResult(mathHTML);
-        });
-
-        // 4. Midpoint Calculation
-        document.getElementById('btnMid').addEventListener('click', () => {
-            if (state.points.length < 2) {
-                showResult("Need 2 points for midpoint.", true);
-                return;
-            }
-
-            const p1 = state.points[state.points.length - 2];
-            const p2 = state.points[state.points.length - 1];
-
-            const mx = (p1.x + p2.x) / 2;
-            const my = (p1.y + p2.y) / 2;
-
-            // Add midpoint to points array temporarily
-            const midPoint = { x: mx, y: my, isMidpoint: true };
-            // Avoid duplicates
-            state.points = state.points.filter(p => !p.isMidpoint);
-            state.points.push(midPoint);
-            
-            draw();
-            showResult(`Midpoint M = ( (x₁+x₂)/2 , (y₁+y₂)/2 )<br><strong>M = (${mx}, ${my})</strong>`);
-        });
-
-        // 5. Clear All
-        document.getElementById('btnClear').addEventListener('click', () => {
-            state.points = [];
-            state.lines = [];
-            state.highlightLine = null;
-            inputField.value = '';
-            resultCard.style.display = 'none';
-            draw();
-        });
-
-        // --- ZOOM CONTROLS ---
-        document.getElementById('btnZoomIn').addEventListener('click', () => {
-            state.scale *= 1.2;
-            draw();
-        });
-
-        document.getElementById('btnZoomOut').addEventListener('click', () => {
-            state.scale /= 1.2;
-            if(state.scale < 5) state.scale = 5; // Min limit
-            draw();
-        });
-
-        document.getElementById('btnResetView').addEventListener('click', () => {
-            state.scale = 40;
-            state.offsetX = 0;
-            state.offsetY = 0;
-            draw();
-        });
-
-        // Support scrolling on canvas to zoom
-        canvas.addEventListener('wheel', (e) => {
+        document.getElementById('add-product-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const zoomFactor = 1.1;
-            if (e.deltaY < 0) {
-                state.scale *= zoomFactor;
-            } else {
-                state.scale /= zoomFactor;
-            }
-            if(state.scale < 5) state.scale = 5;
-            draw();
+            const btn = e.target.querySelector('button');
+            btn.innerText = "Saving..."; btn.disabled = true;
+
+            const newProduct = {
+                name: document.getElementById('input-name').value,
+                description: document.getElementById('input-desc').value,
+                price: parseFloat(document.getElementById('input-price').value),
+                quantity: parseInt(document.getElementById('input-qty').value),
+                addedAt: new Date().toISOString()
+            };
+
+            set(ref(db, 'products/' + currentBarcode), newProduct).then(() => {
+                btn.innerText = "Save Product"; btn.disabled = false;
+                showProductDetails(currentBarcode, newProduct);
+            }).catch((err) => {
+                alert("Error: " + err.message);
+                btn.innerText = "Save Product"; btn.disabled = false;
+            });
+        });
+
+        // --- Product Details & Stock Updating ---
+        function showProductDetails(barcode, productData) {
+            currentBarcode = barcode;
+            currentProductData = productData;
+
+            const price = parseFloat(productData.price) || 0;
+            const qty = parseInt(productData.quantity) || 0;
+            const netPrice = price * qty;
+
+            document.getElementById('detail-name').innerText = productData.name;
+            document.getElementById('detail-barcode').innerText = barcode;
+            document.getElementById('detail-desc').innerText = productData.description;
+            document.getElementById('detail-price').innerText = price.toFixed(2);
+            document.getElementById('detail-qty-display').innerText = qty;
+            document.getElementById('detail-net-price').innerText = netPrice.toFixed(2);
+            document.getElementById('controller-qty').innerText = qty;
+            
+            navigateTo('details', 'Product Details', true, true);
+        }
+
+        function updateStock(change) {
+            let newQty = parseInt(currentProductData.quantity) + change;
+            if (newQty < 0) newQty = 0; // Prevent negative stock
+
+            // Instant UI Update
+            currentProductData.quantity = newQty;
+            const price = parseFloat(currentProductData.price) || 0;
+            document.getElementById('controller-qty').innerText = newQty;
+            document.getElementById('detail-qty-display').innerText = newQty;
+            document.getElementById('detail-net-price').innerText = (price * newQty).toFixed(2);
+
+            // Update Firebase
+            update(ref(db, `products/${currentBarcode}`), { quantity: newQty });
+        }
+
+        document.getElementById('btn-plus').addEventListener('click', () => updateStock(1));
+        document.getElementById('btn-minus').addEventListener('click', () => updateStock(-1));
+
+        // --- PDF GENERATION LOGIC ---
+        
+        // 1. Export Single Product Details
+        document.getElementById('btn-export-single').addEventListener('click', () => {
+            const element = document.getElementById('printable-details');
+            const opt = {
+                margin: 10,
+                filename: `${currentProductData.name}_details.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        });
+
+        // 2. Export Entire Inventory
+        document.getElementById('btn-export-all').addEventListener('click', () => {
+            // Create a temporary hidden div with a printable table format
+            const tempDiv = document.createElement('div');
+            tempDiv.style.padding = "20px";
+            tempDiv.innerHTML = `
+                <h2 style="text-align:center; color:#00796B; margin-bottom: 20px;">Complete Stock Inventory</h2>
+                <p style="margin-bottom: 20px;">Date: ${new Date().toLocaleDateString()}</p>
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <tr style="background-color: #00796B; color: white;">
+                        <th style="padding: 10px; border: 1px solid #ddd;">Product</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Barcode</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Price (₹)</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Qty</th>
+                        <th style="padding: 10px; border: 1px solid #ddd;">Net Value (₹)</th>
+                    </tr>
+                    ${Object.keys(allProducts).map(key => {
+                        const p = allProducts[key];
+                        return `
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">${p.name}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; font-size:12px;">${key}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">${parseFloat(p.price).toFixed(2)}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">${p.quantity}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; font-weight:bold;">${(p.price * p.quantity).toFixed(2)}</td>
+                        </tr>`;
+                    }).join('')}
+                </table>
+            `;
+            
+            const opt = {
+                margin: 10,
+                filename: `Inventory_Report_${new Date().toLocaleDateString().replace(/\//g,'-')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            html2pdf().set(opt).from(tempDiv).save();
         });
 
         // Initialize App
-        initCanvas();
-
+        goHome();
     </script>
 </body>
 </html>
