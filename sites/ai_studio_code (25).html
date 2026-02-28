@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Scanner App</title>
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        /* Android Material UI */
+        body { font-family: 'Roboto', sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .app-bar { background: #3F51B5; color: white; padding: 16px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10; }
+        .app-bar h1 { margin: 0; font-size: 20px; font-weight: 500; }
+        .app-bar p { margin: 5px 0 0 0; font-size: 14px; opacity: 0.9; }
+        #network-banner { background: #F44336; color: white; text-align: center; padding: 5px; font-size: 12px; display: none; }
+        
+        .content { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Scanner Card */
+        .scanner-card { background: black; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px; transition: transform 0.2s; position: relative; }
+        #reader { width: 100%; min-height: 250px; }
+        #camera-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 14px; z-index: 0; }
+        
+        /* Recent Scans List */
+        .recent-box { width: 100%; max-width: 400px; background: white; border-radius: 12px; padding: 15px; box-sizing: border-box; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .recent-box h3 { margin: 0 0 10px 0; font-size: 16px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .recent-list { list-style: none; padding: 0; margin: 0; }
+        .recent-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f9f9f9; font-size: 14px; }
+        .recent-list li:last-child { border-bottom: none; }
+        .time-badge { background: #e0e0e0; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #333; }
+
+        /* Bottom Sheet & Toast */
+        #toast { visibility: hidden; min-width: 250px; text-align: center; border-radius: 24px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); color: white; font-size: 15px; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        #toast.show { visibility: visible; bottom: 50px; }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: flex-end; }
+        .bottom-sheet { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 24px; box-sizing: border-box; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 15px; }
+        .btn-save { width: 100%; background: #3F51B5; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="network-banner">Offline Mode: Check Internet Connection</div>
+    
+    <div class="app-bar">
+        <h1>Class Scanner</h1>
+        <p id="dateDisplay">Loading...</p>
+    </div>
+
+    <div class="content">
+        <!-- Scanner Area -->
+        <div class="scanner-card" id="scannerCard">
+            <div id="camera-loading">Starting Camera...</div>
+            <div id="reader"></div>
+        </div>
+
+        <!-- Recent Logs -->
+        <div class="recent-box">
+            <h3>Recent Scans</h3>
+            <ul class="recent-list" id="recentList">
+                <li style="color: #999; justify-content: center;">No scans yet today</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="toast">Message</div>
+
+    <!-- Registration Modal -->
+    <div id="registrationModal" class="modal-overlay">
+        <div class="bottom-sheet">
+            <h2>New Student Detected!</h2>
+            <p style="font-size: 14px; color: #666;">Register this QR Code to the database.</p>
+            <div class="input-group"><input type="text" id="stuName" placeholder="Student Name"></div>
+            <div class="input-group"><input type="text" id="stuClass" placeholder="Class (e.g. 10th)"></div>
+            <div class="input-group"><input type="number" id="stuRoll" placeholder="Roll Number"></div>
+            <button class="btn-save" id="saveStudentBtn">Save & Mark Present</button>
+            <button class="btn-save" id="cancelBtn" style="background:transparent; color:#666; margin-top:10px;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Audio Effects -->
+    <audio id="beepSound" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3" preload="auto"></audio>
+    <audio id="errorSound" src="https://www.soundjay.com/buttons/sounds/beep-10.mp3" preload="auto"></audio>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, get, child, set } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // Your Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
+            authDomain: "studio-vddd5.firebaseapp.com",
+            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
+            projectId: "studio-vddd5",
+            storageBucket: "studio-vddd5.firebasestorage.app",
+            messagingSenderId: "679230106233",
+            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let isProcessing = false;
+        let pendingQRText = "";
+        let recentScans = [];
+        const dbDateKey = new Date().toISOString().split('T')[0];
+        document.getElementById("dateDisplay").innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+        // Offline Tracker
+        window.addEventListener('offline', () => document.getElementById('network-banner').style.display = 'block');
+        window.addEventListener('online', () => document.getElementById('network-banner').style.display = 'none');
+
+        // Sounds & Animation
+        function playSound(type) {
+            const sound = document.getElementById(type === 'success' ? 'beepSound' : 'errorSound');
+            sound.currentTime = 0; 
+            sound.play().catch(()=>{});
+            if(navigator.vibrate) navigator.vibrate(type === 'success' ? 100 : [200, 100, 200]);
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.style.background = type === 'success' ? '#4CAF50' : '#F44336';
+            toast.className = "show";
+            playSound(type);
+            
+            const card = document.getElementById('scannerCard');
+            card.style.transform = type === 'success' ? 'scale(1.05)' : 'translateX(10px)';
+            setTimeout(() => card.style.transform = 'none', 200);
+
+            setTimeout(() => toast.className = "", 3500);
+        }
+
+        function updateRecentList(name, time) {
+            recentScans.unshift({name, time});
+            if(recentScans.length > 5) recentScans.pop();
+            const list = document.getElementById("recentList");
+            list.innerHTML = recentScans.map(s => `<li><span>${s.name}</span> <span class="time-badge">${s.time}</span></li>`).join('');
+        }
+
+        // Logic
+        function onScanSuccess(decodedText) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            const cleanQR = decodedText.replace(/[.#$\[\]]/g, "_");
+            const dbRef = ref(db);
+
+            get(child(dbRef, `attendance/${dbDateKey}/${cleanQR}`)).then((snap) => {
+                if (snap.exists()) {
+                    showToast("❌ Already Scanned Today!", "error");
+                    setTimeout(() => isProcessing = false, 3000);
+                } else {
+                    get(child(dbRef, `students/${cleanQR}`)).then((stuSnap) => {
+                        if (stuSnap.exists()) {
+                            const stu = stuSnap.val();
+                            markAttendance(cleanQR, stu.name, stu.class, stu.roll);
+                        } else {
+                            pendingQRText = cleanQR;
+                            document.getElementById("registrationModal").style.display = "flex";
+                        }
+                    });
+                }
+            }).catch(() => { showToast("Network Error", "error"); isProcessing = false; });
+        }
+
+        function markAttendance(qrID, name, className, roll) {
+            const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute:'2-digit' });
+            set(ref(db, `attendance/${dbDateKey}/${qrID}`), { name, class: className, roll, time }).then(() => {
+                showToast(`✅ Present: ${name}`, "success");
+                updateRecentList(name, time);
+                setTimeout(() => isProcessing = false, 2500);
+            });
+        }
+
+        // Modal Buttons
+        document.getElementById("cancelBtn").onclick = () => {
+            document.getElementById("registrationModal").style.display = "none";
+            setTimeout(() => isProcessing = false, 1000);
+        };
+
+        document.getElementById("saveStudentBtn").onclick = () => {
+            const name = document.getElementById("stuName").value.trim();
+            const cls = document.getElementById("stuClass").value.trim();
+            const roll = document.getElementById("stuRoll").value.trim();
+            if(!name || !cls || !roll) return alert("Fill all fields");
+
+            set(ref(db, `students/${pendingQRText}`), { name, class: cls, roll }).then(() => {
+                document.getElementById("registrationModal").style.display = "none";
+                markAttendance(pendingQRText, name, cls, roll);
+            });
+        };
+
+        // --- FIXED CAMERA INITIALIZATION ---
+        // Using Core API instead of buggy UI Wrapper
+        const html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        // Start camera automatically (Back camera for mobile)
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            onScanSuccess
+        ).then(() => {
+            document.getElementById("camera-loading").style.display = "none";
+        }).catch((err) => {
+            console.error(err);
+            document.getElementById("camera-loading").innerText = "Camera access denied. Please allow camera permissions.";
+        });
+    </script>
+</body>
+</html>
