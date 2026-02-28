@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Message Share</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        body {
+            background: radial-gradient(circle at top left, #1a1a2e, #16213e);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+        .premium-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s;
+        }
+        .premium-btn:hover { transform: scale(1.02); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-md glass-card p-8 shadow-2xl">
+        <!-- Logo / Title -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+                PREMIUM SHARE
+            </h1>
+            <p class="text-gray-400 text-sm mt-2">Encrypted Real-Time Messaging</p>
+        </div>
+
+        <!-- VIEW: CREATE MESSAGE -->
+        <div id="view-create" class="hidden">
+            <textarea id="msg-input" placeholder="Type your secret message here..." class="w-full bg-transparent border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-purple-500 h-32 mb-4"></textarea>
+            <input type="password" id="msg-pass" placeholder="Set Protection Password" class="w-full bg-transparent border border-gray-700 rounded-lg p-3 mb-6 focus:outline-none focus:border-purple-500">
+            <button onclick="saveMessage()" class="w-full premium-btn py-3 rounded-lg font-semibold">Generate Secure Link</button>
+            <div id="share-area" class="mt-6 hidden">
+                <p class="text-xs text-gray-400 mb-2">Share this URL:</p>
+                <input type="text" id="share-url" readonly class="w-full bg-black/30 p-2 text-xs rounded border border-gray-800 text-purple-300">
+            </div>
+        </div>
+
+        <!-- VIEW: UNLOCK MESSAGE -->
+        <div id="view-unlock" class="hidden">
+            <p class="text-center mb-4 text-gray-300">This message is password protected.</p>
+            <input type="password" id="unlock-pass" placeholder="Enter Password" class="w-full bg-transparent border border-gray-700 rounded-lg p-3 mb-4 focus:outline-none focus:border-purple-500">
+            <button onclick="unlockMessage()" class="w-full premium-btn py-3 rounded-lg font-semibold">Unlock Message</button>
+            <div id="display-msg" class="mt-6 p-4 bg-white/5 rounded-lg border border-purple-500/30 hidden">
+                <p class="text-xs text-purple-400 mb-1">Message Content:</p>
+                <div id="text-content" class="text-lg"></div>
+            </div>
+        </div>
+
+        <!-- VIEW: ADMIN PANEL -->
+        <div id="view-admin" class="hidden">
+            <h2 class="text-xl font-bold mb-4 border-b border-gray-700 pb-2">Admin Dashboard</h2>
+            <div id="admin-list" class="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                <!-- Messages will load here -->
+                <p class="text-gray-500 text-center">Loading database...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE SCRIPTS -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Your Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
+            authDomain: "studio-vddd5.firebaseapp.com",
+            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
+            projectId: "studio-vddd5",
+            storageBucket: "studio-vddd5.firebasestorage.app",
+            messagingSenderId: "679230106233",
+            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // URL Router Logic
+        const query = window.location.search.substring(2); // Gets everything after ?=
+        const viewCreate = document.getElementById('view-create');
+        const viewUnlock = document.getElementById('view-unlock');
+        const viewAdmin = document.getElementById('view-admin');
+
+        window.onload = () => {
+            if (!query) {
+                viewCreate.classList.remove('hidden');
+            } else if (query === "admin") {
+                viewAdmin.classList.remove('hidden');
+                loadAdminData();
+            } else {
+                viewUnlock.classList.remove('hidden');
+            }
+        };
+
+        // CREATE MESSAGE FUNCTION
+        window.saveMessage = async () => {
+            const text = document.getElementById('msg-input').value;
+            const pass = document.getElementById('msg-pass').value;
+            if(!text || !pass) return alert("Fill all fields");
+
+            const randomId = Math.floor(100000 + Math.random() * 900000);
+            
+            try {
+                await set(ref(db, 'messages/' + randomId), {
+                    content: text,
+                    password: pass,
+                    timestamp: Date.now()
+                });
+                
+                const shareUrl = window.location.origin + window.location.pathname + "?=" + randomId;
+                document.getElementById('share-url').value = shareUrl;
+                document.getElementById('share-area').classList.remove('hidden');
+                alert("Message Secured!");
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        };
+
+        // UNLOCK MESSAGE FUNCTION
+        window.unlockMessage = async () => {
+            const passInput = document.getElementById('unlock-pass').value;
+            const dbRef = ref(db);
+            
+            try {
+                const snapshot = await get(child(dbRef, `messages/${query}`));
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    if (data.password === passInput) {
+                        document.getElementById('text-content').innerText = data.content;
+                        document.getElementById('display-msg').classList.remove('hidden');
+                    } else {
+                        alert("Wrong Password!");
+                    }
+                } else {
+                    alert("Message not found or expired.");
+                }
+            } catch (e) {
+                alert("Error fetching data");
+            }
+        };
+
+        // ADMIN PANEL FUNCTION
+        async function loadAdminData() {
+            const dbRef = ref(db);
+            try {
+                const snapshot = await get(child(dbRef, 'messages'));
+                const listContainer = document.getElementById('admin-list');
+                listContainer.innerHTML = '';
+
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    Object.keys(data).forEach(id => {
+                        const item = data[id];
+                        const div = document.createElement('div');
+                        div.className = "p-3 bg-white/5 border border-gray-700 rounded mb-2 text-xs";
+                        div.innerHTML = `
+                            <div class="flex justify-between text-purple-400 mb-1">
+                                <span>ID: ${id}</span>
+                                <span>Pass: ${item.password}</span>
+                            </div>
+                            <div class="text-gray-200">${item.content}</div>
+                        `;
+                        listContainer.appendChild(div);
+                    });
+                } else {
+                    listContainer.innerHTML = "No messages found.";
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+</html>
