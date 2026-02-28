@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Letter Studio Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500&family=Playfair+Display:wght@700&family=Dancing+Script:wght@700&family=Bungee+Shade&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        :root { --m3-primary: #0b57d0; --m3-surface: #f3f6fc; --m3-accent: #d3e3fd; }
+        body { background: var(--m3-surface); font-family: 'Google Sans', sans-serif; overflow-x: hidden; }
+        
+        /* 3D Text Effect Class */
+        .effect-3d { 
+            text-shadow: 0 1px 0 #ccc, 0 2px 0 #c9c9c9, 0 3px 0 #bbb, 0 4px 0 #b9b9b9, 0 5px 0 #aaa, 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15);
+        }
+
+        /* Editor Canvas */
+        #editor-canvas { min-height: 300px; outline: none; transition: all 0.3s; }
+        #editor-canvas:focus { background: rgba(255,255,255,0.5); }
+
+        .m3-card { background: white; border-radius: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .m3-nav { background: #fff; border-top: 1px solid #e0e0e0; position: fixed; bottom: 0; width: 100%; display: flex; justify-content: space-around; padding: 12px; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #444746; }
+        .nav-item.active { color: var(--m3-primary); }
+        
+        /* Templates */
+        .tpl-gold { background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%); border: 2px solid #d4af37; }
+        .tpl-dark { background: #1a1c1e; color: #e2e2e6; }
+        .tpl-glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); }
+
+        .hidden { display: none !important; }
+        .tool-btn { padding: 8px; border-radius: 8px; background: #eee; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- TOP APP BAR -->
+    <nav class="p-6 flex justify-between items-center bg-transparent">
+        <h1 class="text-xl font-bold text-gray-800">Letter<span class="text-blue-600">Studio</span></h1>
+        <div id="admin-tag" class="hidden bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold">ADMIN</div>
+    </nav>
+
+    <div id="app-container" class="max-w-lg mx-auto px-4">
+        
+        <!-- EDITOR VIEW -->
+        <div id="view-edit" class="space-y-6">
+            <div class="m3-card p-6">
+                <!-- Rich Text Toolbar -->
+                <div class="flex flex-wrap gap-2 mb-4 p-2 bg-gray-50 rounded-2xl border border-gray-100">
+                    <input type="color" id="text-color" onchange="applyColor(this.value)" class="w-8 h-8 rounded cursor-pointer">
+                    <button onclick="applyEffect('3d')" class="tool-btn bg-blue-100 text-blue-700">3D TEXT</button>
+                    <button onclick="document.execCommand('bold')" class="tool-btn">B</button>
+                    <button onclick="document.execCommand('italic')" class="tool-btn italic">I</button>
+                    <select id="font-family" onchange="applyFont(this.value)" class="tool-btn">
+                        <option value="'Google Sans'">Modern</option>
+                        <option value="'Playfair Display'">Elegant</option>
+                        <option value="'Dancing Script'">Script</option>
+                        <option value="'Bungee Shade'">3D Block</option>
+                    </select>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex gap-2">
+                        <input type="text" id="from-name" placeholder="From" class="w-1/2 p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 ring-blue-200">
+                        <input type="text" id="to-name" placeholder="To" class="w-1/2 p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 ring-blue-200">
+                    </div>
+                    
+                    <!-- THE CANVAS -->
+                    <div id="editor-canvas" contenteditable="true" class="p-4 bg-gray-50 rounded-2xl text-lg" placeholder="Tap here to start writing your premium letter..."></div>
+                </div>
+            </div>
+
+            <!-- Extra Features Card -->
+            <div class="m3-card p-6 space-y-4">
+                <h3 class="font-bold text-sm text-gray-500">PREMIUM UPGRADES</h3>
+                <div class="flex justify-between items-center">
+                    <span>Opening Animation</span>
+                    <select id="mood-effect" class="bg-gray-100 p-2 rounded-lg text-xs">
+                        <option value="none">None</option>
+                        <option value="confetti">Celebration 🎉</option>
+                        <option value="snow">Winter ❄️</option>
+                    </select>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Password Protect</span>
+                    <input type="password" id="letter-pass" placeholder="Optional Key" class="bg-gray-100 p-2 rounded-lg text-xs w-32 outline-none">
+                </div>
+            </div>
+
+            <button onclick="publishLetter()" class="w-full bg-blue-600 text-white py-5 rounded-[24px] font-bold shadow-xl shadow-blue-200 text-lg">
+                Generate Secure URL
+            </button>
+        </div>
+
+        <!-- PREVIEW/READ VIEW -->
+        <div id="view-read" class="hidden">
+            <div id="letter-display" class="m3-card min-h-[500px] p-8 relative overflow-hidden">
+                <div id="read-header" class="flex justify-between text-[10px] opacity-50 mb-10">
+                    <span>PRIVATE ENCRYPTED MESSAGE</span>
+                    <span id="read-date"></span>
+                </div>
+                <div class="mb-6">
+                    <p class="text-xs opacity-60 italic">Dear,</p>
+                    <h2 id="read-to" class="text-3xl font-bold"></h2>
+                </div>
+                <div id="read-body" class="text-xl leading-relaxed mb-10"></div>
+                <div>
+                    <p class="text-xs opacity-60 italic">Sincerely,</p>
+                    <h2 id="read-from" class="text-3xl font-bold"></h2>
+                </div>
+            </div>
+            
+            <!-- Result Box -->
+            <div id="result-box" class="mt-6 m3-card p-6 bg-blue-50 border border-blue-100 hidden">
+                <p class="text-xs font-bold text-blue-800 mb-2">SHAREABLE LINK CREATED:</p>
+                <div class="flex gap-2">
+                    <input type="text" id="share-url" readonly class="flex-1 bg-white p-2 rounded-lg text-xs border border-blue-200">
+                    <button onclick="copyUrl()" class="bg-blue-600 text-white px-4 rounded-lg text-xs">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN PANEL VIEW -->
+        <div id="view-admin" class="hidden space-y-4">
+            <div class="m3-card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Cloud Terminal</h2>
+                    <button onclick="nuclearReset()" class="bg-red-600 text-white text-[10px] px-4 py-2 rounded-full font-bold">RESET DATABASE</button>
+                </div>
+                <input type="text" id="admin-search" placeholder="Search by name or ID..." class="w-full p-3 bg-gray-100 rounded-xl mb-4 text-sm outline-none" oninput="adminFilter()">
+                <div id="admin-list" class="space-y-3">
+                    <!-- Dynamic Items -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <div class="m3-nav">
+        <div onclick="switchTab('edit')" class="nav-item active" id="tab-edit">
+            <span class="text-xl">✍️</span>
+            <span>Design</span>
+        </div>
+        <div onclick="switchTab('admin')" class="nav-item" id="tab-admin">
+            <span class="text-xl">⚙️</span>
+            <span>Admin</span>
+        </div>
+    </div>
+
+    <!-- FIREBASE MODULE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, child, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
+            authDomain: "studio-vddd5.firebaseapp.com",
+            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
+            projectId: "studio-vddd5",
+            storageBucket: "studio-vddd5.firebasestorage.app",
+            messagingSenderId: "679230106233",
+            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const query = window.location.search.substring(2);
+
+        // --- EDITOR TOOLS ---
+        window.applyColor = (color) => document.execCommand('foreColor', false, color);
+        window.applyFont = (font) => document.execCommand('fontName', false, font);
+        window.applyEffect = (effect) => {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const span = document.createElement('span');
+            span.className = effect === '3d' ? 'effect-3d' : '';
+            selection.getRangeAt(0).surroundContents(span);
+        };
+
+        // --- ROUTING ---
+        window.onload = () => {
+            if (query === 'admin') {
+                switchTab('admin');
+                document.getElementById('admin-tag').classList.remove('hidden');
+            } else if (query) {
+                loadReadView(query);
+            }
+        };
+
+        window.switchTab = (tab) => {
+            document.getElementById('view-edit').classList.toggle('hidden', tab !== 'edit');
+            document.getElementById('view-admin').classList.toggle('hidden', tab !== 'admin');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            if (tab === 'admin') loadAdminData();
+        };
+
+        // --- CORE LOGIC ---
+        window.publishLetter = async () => {
+            const id = Math.floor(100000 + Math.random() * 900000);
+            const data = {
+                from: document.getElementById('from-name').value,
+                to: document.getElementById('to-name').value,
+                body: document.getElementById('editor-canvas').innerHTML,
+                pass: document.getElementById('letter-pass').value,
+                mood: document.getElementById('mood-effect').value,
+                date: new Date().toLocaleDateString()
+            };
+
+            if (!data.from || !data.body) return alert("Please fill names and write something!");
+
+            await set(ref(db, 'studio/' + id), data);
+            const link = window.location.origin + window.location.pathname + "?=" + id;
+            document.getElementById('share-url').value = link;
+            document.getElementById('result-box').classList.remove('hidden');
+            alert("Letter Live & Secured!");
+        };
+
+        async function loadReadView(id) {
+            const snap = await get(child(ref(db), 'studio/' + id));
+            if (snap.exists()) {
+                const data = snap.val();
+                if (data.pass) {
+                    const input = prompt("This letter is locked. Enter key:");
+                    if (input !== data.pass) return (location.href = location.pathname);
+                }
+                
+                document.getElementById('view-edit').classList.add('hidden');
+                document.getElementById('view-read').classList.remove('hidden');
+                document.getElementById('read-from').innerText = data.from;
+                document.getElementById('read-to').innerText = data.to;
+                document.getElementById('read-body').innerHTML = data.body;
+                document.getElementById('read-date').innerText = data.date;
+
+                if (data.mood === 'confetti') confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            }
+        }
+
+        // --- ADMIN POWER ---
+        async function loadAdminData() {
+            const snap = await get(child(ref(db), 'studio'));
+            const list = document.getElementById('admin-list');
+            list.innerHTML = "";
+            if (snap.exists()) {
+                const data = snap.val();
+                Object.keys(data).reverse().forEach(id => {
+                    const l = data[id];
+                    list.innerHTML += `
+                        <div class="admin-card p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs" data-search="${l.from} ${l.to} ${id}">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-bold text-blue-600">ID: ${id}</span>
+                                <button onclick="deleteMsg('${id}')" class="text-red-500 font-bold">DELETE</button>
+                            </div>
+                            <p><b>From:</b> ${l.from} | <b>To:</b> ${l.to}</p>
+                            <p class="text-gray-400 truncate mt-1">${l.body.replace(/<[^>]*>?/gm, '')}</p>
+                            <div class="mt-2 text-[10px] flex justify-between">
+                                <span>Key: ${l.pass || 'None'}</span>
+                                <span>Mood: ${l.mood}</span>
+                            </div>
+                        </div>`;
+                });
+            }
+        }
+
+        window.deleteMsg = async (id) => {
+            if (confirm("Delete this letter?")) {
+                await remove(ref(db, 'studio/' + id));
+                loadAdminData();
+            }
+        };
+
+        window.nuclearReset = async () => {
+            if (confirm("DANGER: WIPE DATABASE?")) {
+                await remove(ref(db, 'studio'));
+                loadAdminData();
+            }
+        };
+
+        window.adminFilter = () => {
+            const val = document.getElementById('admin-search').value.toLowerCase();
+            document.querySelectorAll('.admin-card').forEach(el => {
+                el.classList.toggle('hidden', !el.getAttribute('data-search').toLowerCase().includes(val));
+            });
+        };
+
+        window.copyUrl = () => {
+            const el = document.getElementById('share-url');
+            el.select();
+            document.execCommand('copy');
+            alert("URL Copied!");
+        };
+
+    </script>
+</body>
+</html>
