@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Supabase Mobile Tester</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 15px; background: #121212; color: white; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #3ecf8e; }
+        
+        button { 
+            width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; 
+            font-size: 1rem; font-weight: bold; color: white; cursor: pointer;
+            active { opacity: 0.7; }
+        }
+        .btn-write { background: #3ecf8e; }
+        .btn-read { background: #3e70cf; }
+        .btn-clear { background: #444; font-size: 0.8rem; padding: 8px; }
+
+        /* Mobile Console Styles */
+        #console { 
+            background: #000; color: #0f0; font-family: monospace; 
+            padding: 10px; border-radius: 8px; font-size: 12px;
+            height: 300px; overflow-y: auto; border: 1px solid #444;
+            white-space: pre-wrap; word-break: break-all;
+        }
+        .log-err { color: #ff4d4d; border-bottom: 1px solid #444; padding: 5px 0; }
+        .log-info { color: #00d4ff; border-bottom: 1px solid #444; padding: 5px 0; }
+        .log-success { color: #3ecf8e; border-bottom: 1px solid #444; padding: 5px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Supabase Speed Test</h2>
+        <button class="btn-write" onclick="runWrite()">1. TEST WRITE SPEED</button>
+        <button class="btn-read" onclick="runRead()">2. TEST READ SPEED</button>
+        <button class="btn-clear" onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <div style="margin-bottom: 5px; font-size: 0.8rem; color: #888;">DEBUG LOG:</div>
+    <div id="console">Initializing...</div>
+
+<script>
+    // Configuration
+    const SUPABASE_URL = 'https://mcaluyoeqrwuoeevfpzj.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jYWx1eW9lcXJ3dW9lZXZmcHpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyODY5NDEsImV4cCI6MjA4Nzg2Mjk0MX0.IDWjJQxdd5kt7gHyFsF6U5Y8LFF_3wt__8Fu141Ieps';
+
+    const consoleEl = document.getElementById('console');
+
+    // Custom Logger for Mobile
+    function print(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = 'log-' + type;
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        consoleEl.prepend(div);
+    }
+
+    // Catch global errors (syntax, network, etc.)
+    window.onerror = function(msg, url, line) {
+        print(`GLOBAL ERROR: ${msg} at line ${line}`, 'err');
+    };
+
+    // Initialize Client
+    let supabase;
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        print("Supabase Client Initialized", "success");
+    } catch (e) {
+        print("Failed to init Supabase: " + e.message, "err");
+    }
+
+    async function runWrite() {
+        print("Starting Write Test...", "info");
+        const startTime = performance.now();
+
+        try {
+            const { data, error, status } = await supabase
+                .from('speed_test')
+                .insert([{ payload: "Mobile test at " + new Date().toISOString() }]);
+
+            const endTime = performance.now();
+            
+            if (error) {
+                print(`WRITE ERROR: ${error.message} (Code: ${error.code})`, "err");
+                console.log(error);
+            } else {
+                const duration = (endTime - startTime).toFixed(2);
+                print(`WRITE SUCCESS! Status: ${status}. Time: ${duration}ms`, "success");
+            }
+        } catch (err) {
+            print("CATCHED WRITE ERROR: " + err.message, "err");
+        }
+    }
+
+    async function runRead() {
+        print("Starting Read Test...", "info");
+        const startTime = performance.now();
+
+        try {
+            const { data, error, status } = await supabase
+                .from('speed_test')
+                .select('*')
+                .limit(5);
+
+            const endTime = performance.now();
+
+            if (error) {
+                print(`READ ERROR: ${error.message} (Code: ${error.code})`, "err");
+            } else {
+                const duration = (endTime - startTime).toFixed(2);
+                print(`READ SUCCESS! Found ${data.length} rows. Time: ${duration}ms`, "success");
+            }
+        } catch (err) {
+            print("CATCHED READ ERROR: " + err.message, "err");
+        }
+    }
+
+    function clearLogs() {
+        consoleEl.innerHTML = "Logs cleared.";
+    }
+</script>
+
+</body>
+</html>
