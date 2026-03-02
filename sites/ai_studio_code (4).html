@@ -2,305 +2,181 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Holi 2026 | The Future of Celebration</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;400;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Face Recognition</title>
+    <!-- Load face-api.js from CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         :root {
-            --accent: #00f2ff;
-            --bg: #030303;
+            --primary-blue: #007bff;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body, html {
-            width: 100%;
-            height: 100%;
-            background: var(--bg);
-            color: white;
-            font-family: 'Outfit', sans-serif;
-            overflow: hidden;
-            user-select: none;
-        }
-
-        /* IMMERSIVE CANVAS */
-        #renderCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        /* 2026 HOLOGRAPHIC OVERLAY (NO BOXES) */
-        .content-layer {
-            position: relative;
-            z-index: 10;
-            height: 100%;
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            pointer-events: none;
+            padding: 40px 20px;
+        }
+
+        /* Header Section */
+        .header {
             text-align: center;
-            padding: 30px;
+            margin-bottom: 40px;
         }
 
-        .from-tag {
-            font-weight: 100;
-            letter-spacing: 8px;
-            font-size: 0.9rem;
+        .profile-container {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        .profile-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 5px solid var(--primary-blue);
+            object-fit: cover;
+            background-color: #ddd;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin: 0;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.6);
-            margin-bottom: 20px;
-            animation: fadeIn 2s ease;
+            letter-spacing: 1px;
         }
 
-        .main-title {
-            font-weight: 900;
-            font-size: 5rem;
-            line-height: 0.9;
-            text-transform: uppercase;
-            background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.1));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 30px rgba(255,255,255,0.2));
-            margin-bottom: 20px;
+        /* Webcam Section */
+        .webcam-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            background: #000;
         }
 
-        .message-text {
-            font-weight: 300;
-            font-size: 1.2rem;
-            max-width: 400px;
-            color: rgba(255, 255, 255, 0.8);
-            text-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        video {
+            display: block;
+            border-radius: 15px;
+            /* Mirror the video feed for a more natural feel */
+            transform: scaleX(-1);
         }
 
-        /* INTERACTION BUTTON - BORDERLESS GLOW */
-        .power-trigger {
-            pointer-events: auto;
-            margin-top: 50px;
-            padding: 20px 40px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 100px;
-            color: white;
-            font-weight: 400;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: 0.4s;
-        }
-
-        .power-trigger:hover {
-            background: white;
-            color: black;
-            box-shadow: 0 0 50px white;
-        }
-
-        /* CREATOR UI - NEUMORPHIC FUTURE STYLE */
-        .creator-ui {
-            position: fixed;
-            bottom: -100%;
+        canvas {
+            position: absolute;
+            top: 0;
             left: 0;
-            width: 100%;
-            background: rgba(10, 10, 10, 0.95);
-            padding: 40px 25px;
-            z-index: 100;
-            transition: 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-            border-top: 1px solid rgba(255,255,255,0.1);
+            /* Mirror the canvas drawing to match mirrored video */
+            transform: scaleX(-1);
         }
 
-        .creator-ui.active { bottom: 0; }
-
-        input {
-            width: 100%;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            padding: 15px 0;
-            color: white;
-            font-size: 1.1rem;
-            margin-bottom: 20px;
-            outline: none;
+        .status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: var(--primary-blue);
         }
-
-        .share-btn {
-            width: 100%;
-            padding: 20px;
-            border-radius: 10px;
-            border: none;
-            background: #25D366;
-            color: white;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        /* PICHKARI 2026 - FLOATING ICON */
-        .pichkari-2026 {
-            position: fixed;
-            bottom: 40px;
-            right: 40px;
-            width: 80px;
-            opacity: 0.5;
-            filter: invert(1);
-            z-index: 50;
-            pointer-events: none;
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <canvas id="renderCanvas"></canvas>
-    
-    <!-- AUDIO -->
-    <video id="audioTrack" loop style="display:none;">
-        <source src="https://raw.githubusercontent.com/Mausam678/Happy-Holi-Wishing-Website/88ea3d2b61655374f8ef77547f17da1c0bf0772e/Happy%20Holi%202024%20By%20CWS.mp4" type="video/mp4">
-    </video>
-
-    <div class="content-layer">
-        <div class="from-tag" id="senderName">Wishes From Future</div>
-        <h1 class="main-title">HOLI<br>2026</h1>
-        <p class="message-text" id="wishMessage">Experience the blast of colors in a borderless world. Happiness has no limits.</p>
-        
-        <button class="power-trigger" onclick="activateExperience()">TAP TO BLAST</button>
-        
-        <div style="pointer-events: auto; margin-top: 20px; opacity: 0.4; font-size: 0.7rem; cursor: pointer;" onclick="toggleCreator()">
-            + CREATE YOUR CUSTOM WISH
+    <header class="header">
+        <div class="profile-container">
+            <!-- 
+                 IMAGE INSTRUCTIONS: 
+                 Paste your image URL or local file path (e.g., "my-photo.jpg") 
+                 into the 'src' attribute below. 
+            -->
+            <img src="https://via.placeholder.com/200" alt="Profile" class="profile-img">
         </div>
-    </div>
+        <h1>YOUR NAME</h1>
+    </header>
 
-    <!-- PICHKARI ICON -->
-    <img src="https://cdn-icons-png.flaticon.com/512/2933/2933891.png" class="pichkari-2026">
-
-    <!-- CREATOR -->
-    <div class="creator-ui" id="creator">
-        <div style="width: 40px; height: 4px; background: #333; margin: -20px auto 30px; border-radius: 2px;"></div>
-        <input type="text" id="nameIn" placeholder="Enter Your Name">
-        <input type="text" id="msgIn" placeholder="Your Holi Message">
-        <button class="share-btn" onclick="shareToWhatsapp()">SHARE ON WHATSAPP</button>
-        <button style="background:transparent; color: #666; border:none; width:100%; margin-top:15px;" onclick="toggleCreator()">CLOSE</button>
+    <div class="webcam-container">
+        <video id="video" width="720" height="560" autoplay muted playsinline></video>
     </div>
+    
+    <div id="status" class="status">Loading AI Models...</div>
 
     <script>
-        const canvas = document.getElementById('renderCanvas');
-        const ctx = canvas.getContext('2d');
-        const audio = document.getElementById('audioTrack');
-        let particles = [];
-        let isPowerActive = false;
+        const video = document.getElementById('video');
+        const statusText = document.getElementById('status');
+        const MY_NAME = "YOUR NAME"; // The label for the detected face
 
-        // URL DATA HANDLING
-        const urlData = new URLSearchParams(window.location.search);
-        if(urlData.get('name')) document.getElementById('senderName').innerText = "Wishes From " + urlData.get('name');
-        if(urlData.get('message')) document.getElementById('wishMessage').innerText = urlData.get('message');
+        // Load models from the official weights repository
+        const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
-        class HoliParticle {
-            constructor(x, y, color, size) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.size = size;
-                this.angle = Math.random() * Math.PI * 2;
-                this.velocity = Math.random() * 15 + 5;
-                this.vx = Math.cos(this.angle) * this.velocity;
-                this.vy = Math.sin(this.angle) * this.velocity;
-                this.life = 1.0;
-                this.friction = 0.96;
-                this.gravity = 0.15;
-            }
-
-            update() {
-                this.vx *= this.friction;
-                this.vy *= this.friction;
-                this.vy += this.gravity;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.012;
-                this.size *= 0.98;
-            }
-
-            draw() {
-                ctx.save();
-                ctx.globalAlpha = this.life;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                // Add Glow to particles
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = this.color;
-                ctx.fill();
-                ctx.restore();
+        async function init() {
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+                
+                statusText.innerText = "Models Loaded. Starting Webcam...";
+                startVideo();
+            } catch (err) {
+                statusText.innerText = "Error loading models: " + err;
+                console.error(err);
             }
         }
 
-        function init() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then(stream => {
+                    video.srcObject = stream;
+                    statusText.innerText = "AI Active: Detecting Face...";
+                })
+                .catch(err => {
+                    statusText.innerText = "Webcam Error: " + err;
+                    console.error(err);
+                });
         }
 
-        function createBlast(x, y) {
-            const palette = ['#ff0055', '#00f2ff', '#00ff9f', '#ffeb3b', '#9c27b0', '#ff5722'];
-            const color = palette[Math.floor(Math.random() * palette.length)];
-            for (let i = 0; i < 60; i++) {
-                particles.push(new HoliParticle(x, y, color, Math.random() * 12 + 4));
-            }
-        }
-
-        function animate() {
-            // Motion Blur Effect
-            ctx.fillStyle = 'rgba(3, 3, 3, 0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            particles.forEach((p, i) => {
-                if (p.life <= 0) particles.splice(i, 1);
-                else { p.update(); p.draw(); }
-            });
-
-            requestAnimationFrame(animate);
-        }
-
-        function activateExperience() {
-            isPowerActive = true;
-            audio.play();
-            createBlast(window.innerWidth / 2, window.innerHeight / 2);
+        video.addEventListener('play', () => {
+            // Create a canvas from the video element
+            const canvas = faceapi.createCanvasFromMedia(video);
+            document.querySelector('.webcam-container').append(canvas);
             
-            // Auto Random Blasts
-            setInterval(() => {
-                if(isPowerActive) createBlast(Math.random()*canvas.width, Math.random()*canvas.height);
-            }, 1000);
-        }
+            const displaySize = { width: video.width, height: video.height };
+            faceapi.matchDimensions(canvas, displaySize);
 
-        // Tap to Blast anywhere
-        window.addEventListener('touchstart', (e) => {
-            if(!isPowerActive) return;
-            const t = e.touches[0];
-            createBlast(t.clientX, t.clientY);
+            setInterval(async () => {
+                // Detect faces using the TinyFaceDetector for performance
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks();
+
+                // Resize detections to match the video display size
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+
+                // Clear canvas for the next frame
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw each detection box with custom styling
+                resizedDetections.forEach(detection => {
+                    const box = detection.detection.box;
+                    const drawBox = new faceapi.draw.DrawBox(box, { 
+                        label: MY_NAME, 
+                        boxColor: 'blue',
+                        lineWidth: 3
+                    });
+                    drawBox.draw(canvas);
+                });
+            }, 100); // Run every 100ms
         });
 
-        window.addEventListener('mousedown', (e) => {
-            if(!isPowerActive) return;
-            createBlast(e.clientX, e.clientY);
-        });
-
-        // UI ACTIONS
-        function toggleCreator() {
-            document.getElementById('creator').classList.toggle('active');
-        }
-
-        function shareToWhatsapp() {
-            const n = document.getElementById('nameIn').value || "Friend";
-            const m = document.getElementById('msgIn').value || "Happy Holi 2026!";
-            const url = `${window.location.origin}${window.location.pathname}?name=${encodeURIComponent(n)}&message=${encodeURIComponent(m)}`;
-            const text = `🎨 *${n}* sent you a Futuristic Holi Celebration! Tap to see the 2026 magic: ${url}`;
-            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`);
-        }
-
-        window.addEventListener('resize', init);
+        // Start the application
         init();
-        animate();
     </script>
 </body>
 </html>
