@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BG REMOVER PRO</title>
+    <link rel="manifest" id="pwa-manifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --accent: #8b5cf6;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Premium UI Elements */
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; }
+
+        .upload-area {
+            border: 2px dashed #334155;
+            padding: 2rem;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .upload-area:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+
+        #image-preview {
+            width: 100%;
+            border-radius: 12px;
+            display: none;
+            margin-top: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn:active { transform: scale(0.98); }
+
+        /* PWA Banner */
+        #install-banner {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: var(--accent);
+            padding: 15px;
+            border-radius: 15px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp { from { transform: translateY(100px); } to { transform: translateY(0); } }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #status-msg { margin-top: 10px; font-size: 0.8rem; color: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>BG REMOVER PRO</h1>
+        <p>Premium Artificial Intelligence Processing</p>
+
+        <div class="upload-area" id="drop-zone">
+            <div id="upload-placeholder">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary); margin-bottom: 10px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                <div style="font-weight: 500;">Tap to Upload Image</div>
+                <div style="font-size: 0.7rem; color: #64748b; margin-top: 5px;">Supports PNG, JPG (Max 5MB)</div>
+            </div>
+            <img id="image-preview" src="" alt="Preview">
+            <input type="file" id="file-input" hidden accept="image/*">
+        </div>
+
+        <button class="btn" id="process-btn" disabled>
+            <div class="loader" id="loader"></div>
+            <span id="btn-text">Remove Background</span>
+        </button>
+
+        <button class="btn" id="download-btn" style="display: none; background: #10b981;">
+            Download Result
+        </button>
+        
+        <div id="status-msg"></div>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="install-banner">
+        <span style="font-weight: bold; font-size: 0.9rem;">✨ Install BG PRO for offline use</span>
+        <button id="install-button" style="background: white; color: black; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold;">GET APP</button>
+    </div>
+
+    <script>
+        /** CONFIGURATION **/
+        const API_KEY = 'UPWavDk397gToCvyLM63SCDZ';
+        let deferredPrompt;
+        let selectedFile = null;
+
+        /** UI ELEMENTS **/
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const imgPreview = document.getElementById('image-preview');
+        const processBtn = document.getElementById('process-btn');
+        const btnText = document.getElementById('btn-text');
+        const loader = document.getElementById('loader');
+        const downloadBtn = document.getElementById('download-btn');
+        const statusMsg = document.getElementById('status-msg');
+        const installBanner = document.getElementById('install-banner');
+        const installBtn = document.getElementById('install-button');
+
+        /** PWA LOGIC - IN-MEMORY SERVICE WORKER **/
+        const swCode = `
+            self.addEventListener('install', (e) => self.skipWaiting());
+            self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => {})));
+        `;
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(swUrl).then(() => console.log("SW Registered via Blob"));
+        }
+
+        // Inline Manifest Creation
+        const manifest = {
+            "name": "BG Remover Pro",
+            "short_name": "BG Pro",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#0f172a",
+            "theme_color": "#0f172a",
+            "icons": [{
+                "src": "https://cdn-icons-png.flaticon.com/512/3388/3388654.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }]
+        };
+        const manifestStr = JSON.stringify(manifest);
+        const manifestBlob = new Blob([manifestStr], {type: 'application/json'});
+        document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+        // Handle PWA Install Prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBanner.style.display = 'flex';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') installBanner.style.display = 'none';
+                deferredPrompt = null;
+            }
+        });
+
+        /** CORE FUNCTIONALITY **/
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            selectedFile = e.target.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imgPreview.src = event.target.result;
+                    imgPreview.style.display = 'block';
+                    document.getElementById('upload-placeholder').style.display = 'none';
+                    processBtn.disabled = false;
+                    downloadBtn.style.display = 'none';
+                    statusMsg.innerText = '';
+                }
+                reader.readAsDataURL(selectedFile);
+            }
+        };
+
+        processBtn.onclick = async () => {
+            if (!selectedFile) return;
+
+            // UI State
+            processBtn.disabled = true;
+            loader.style.display = 'inline-block';
+            btnText.innerText = 'Removing...';
+            statusMsg.innerText = '';
+
+            const formData = new FormData();
+            formData.append('image_file', selectedFile);
+            formData.append('size', 'auto');
+
+            try {
+                const response = await fetch('https://api.remove.bg/v1.0/removebg', {
+                    method: 'POST',
+                    headers: { 'X-Api-Key': API_KEY },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    
+                    imgPreview.src = url;
+                    downloadBtn.style.display = 'flex';
+                    downloadBtn.onclick = () => {
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = "no-bg-image.png";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    };
+                    
+                    btnText.innerText = 'Success!';
+                    loader.style.display = 'none';
+                } else {
+                    const err = await response.json();
+                    throw new Error(err.errors[0].title || "Failed to process");
+                }
+            } catch (error) {
+                statusMsg.innerText = "Error: " + error.message;
+                btnText.innerText = 'Try Again';
+                processBtn.disabled = false;
+                loader.style.display = 'none';
+            }
+        };
+
+        // Standard Drag & Drop
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = "var(--primary)"; };
+        dropZone.ondragleave = () => { dropZone.style.borderColor = "#334155"; };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            fileInput.files = e.dataTransfer.files;
+            fileInput.onchange({ target: { files: e.dataTransfer.files } });
+        };
+    </script>
+</body>
+</html>
