@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Hand Drawing with Skeleton & Eraser</title>
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" as="script">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" crossorigin="anonymous"></script>
+    
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            overflow: hidden; background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            touch-action: none;
+        }
+
+        .fullscreen-layer {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover; transform: scaleX(-1);
+        }
+
+        #video { z-index: 1; }
+        #draw_canvas { z-index: 2; }
+        #cursor_canvas { z-index: 3; }
+
+        #ui-layer {
+            position: absolute; top: 15px; left: 15px; z-index: 10;
+            background: rgba(0, 0, 0, 0.7); color: white; padding: 15px;
+            border-radius: 12px; backdrop-filter: blur(8px);
+            pointer-events: none; max-width: 280px; border: 1px solid #333;
+        }
+
+        h3 { margin: 0 0 10px 0; font-size: 18px; color: #00FF00;}
+        p { margin: 6px 0; font-size: 14px; display: flex; align-items: center; gap: 8px;}
+        .icon { font-size: 20px; }
+        
+        button {
+            pointer-events: auto; background: #ff4757; color: white; border: none;
+            padding: 10px 15px; border-radius: 8px; font-weight: bold;
+            cursor: pointer; margin-top: 10px; width: 100%; transition: 0.2s;
+        }
+        button:hover { background: #ff6b81; }
+
+        .loader {
+            display: inline-block; width: 12px; height: 12px;
+            border: 2px solid #fff; border-bottom-color: transparent;
+            border-radius: 50%; animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h3>Pro Hand Tracker</h3>
+        <p id="status"><span class="loader"></span> Loading AI Engine...</p>
+        <hr style="border-color: #444;">
+        <p><span class="icon">🤏</span> <b>Pinch</b> to Draw</p>
+        <p><span class="icon">✋</span> <b>Open Hand</b> to Erase</p>
+        <p><span class="icon">🖐️</span> <b>Relax</b> to Hover</p>
+        <button id="clearBtn" style="display: none;">Erase All</button>
+    </div>
+
+    <!-- Layers for Performance -->
+    <video id="video" class="fullscreen-layer" autoplay playsinline></video>
+    <canvas id="draw_canvas" class="fullscreen-layer"></canvas>
+    <canvas id="cursor_canvas" class="fullscreen-layer"></canvas>
+
+    <script type="module">
+        import { HandLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+        const video = document.getElementById("video");
+        const drawCanvas = document.getElementById("draw_canvas");
+        const drawCtx = drawCanvas.getContext("2d");
+        const cursorCanvas = document.getElementById("cursor_canvas");
+        const cursorCtx = cursorCanvas.getContext("2d");
+        const statusText = document.getElementById("status");
+        const clearBtn = document.getElementById("clearBtn");
+
+        let handLandmarker;
+        let drawingUtils;
+        let isDrawing = false;
+        
+        // Smoothing Variables (reduces jitter for accurate drawing)
+        let smoothedX = 0, smoothedY = 0;
+        let lastDrawX = 0, lastDrawY = 0;
+        const SMOOTHING_FACTOR = 0.4; // Lower = smoother but slight lag. 0.4 is a good balance.
+
+        let lastVideoTime = -1;
+
+        async function initApp() {
+            try {
+                // 1. Load Camera
+                const cameraPromise = navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+                }).then(stream => {
+                    video.srcObject = stream;
+                    return new Promise(resolve => { video.onloadeddata = () => resolve(true); });
+                });
+
+                // 2. Load AI Model
+                const visionPromise = FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+                ).then(vision => HandLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                        delegate: "GPU"
+                    },
+                    runningMode: "VIDEO",
+                    numHands: 1
+                }));
+
+                // Wait for both
+                const results = await Promise.all([cameraPromise, visionPromise]);
+                handLandmarker = results[1];
+                drawingUtils = new DrawingUtils(cursorCtx);
+
+                setCanvasSize();
+                window.addEventListener("resize", setCanvasSize);
+
+                statusText.innerHTML = "✅ Tracker Active!";
+                clearBtn.style.display = "block";
+
+                detectHands();
+            } catch (error) {
+                statusText.innerHTML = "❌ Camera Error. Run on Localhost/HTTPS.";
+                console.error(error);
+            }
+        }
+
+        function setCanvasSize() {
+            drawCanvas.width = video.videoWidth; drawCanvas.height = video.videoHeight;
+            cursorCanvas.width = video.videoWidth; cursorCanvas.height = video.videoHeight;
+        }
+
+        // Helper function to check if a finger is extended (for the eraser gesture)
+        // It measures if the finger tip is further from the wrist than the middle joint
+        function isFingerExtended(landmarks, tipIndex, middleJointIndex) {
+            const wrist = landmarks[0];
+            const distTip = Math.hypot(landmarks[tipIndex].x - wrist.x, landmarks[tipIndex].y - wrist.y);
+            const distMiddle = Math.hypot(landmarks[middleJointIndex].x - wrist.x, landmarks[middleJointIndex].y - wrist.y);
+            return distTip > distMiddle;
+        }
+
+        function detectHands() {
+            let startTimeMs = performance.now();
+            
+            if (video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                const results = handLandmarker.detectForVideo(video, startTimeMs);
+                
+                cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+
+                if (results.landmarks && results.landmarks.length > 0) {
+                    const landmarks = results.landmarks[0];
+                    
+                    // 1. Draw Hand Skeleton Structure
+                    drawingUtils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
+                        color: "rgba(0, 255, 0, 0.4)", lineWidth: 3 
+                    });
+                    drawingUtils.drawLandmarks(landmarks, { 
+                        color: "rgba(255, 0, 0, 0.6)", lineWidth: 1, radius: 3 
+                    });
+
+                    processHand(landmarks);
+                } else {
+                    isDrawing = false;
+                    smoothedX = 0; smoothedY = 0; // Reset smoothing when hand leaves screen
+                }
+            }
+            requestAnimationFrame(detectHands);
+        }
+
+        function processHand(landmarks) {
+            const indexTip = landmarks[8];
+            const thumbTip = landmarks[4];
+            
+            // Convert to canvas pixels
+            const targetX = indexTip.x * drawCanvas.width;
+            const targetY = indexTip.y * drawCanvas.height;
+
+            // Apply Smoothing Algorithm
+            if (smoothedX === 0 && smoothedY === 0) {
+                smoothedX = targetX; smoothedY = targetY; // Initial frame
+            } else {
+                smoothedX += (targetX - smoothedX) * SMOOTHING_FACTOR;
+                smoothedY += (targetY - smoothedY) * SMOOTHING_FACTOR;
+            }
+
+            // --- GESTURE DETECTION ---
+            const pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+            const isPinching = pinchDistance < 0.05;
+
+            // Check if middle, ring, and pinky are extended (Open Palm Gesture)
+            const middleUp = isFingerExtended(landmarks, 12, 10);
+            const ringUp = isFingerExtended(landmarks, 16, 14);
+            const pinkyUp = isFingerExtended(landmarks, 20, 18);
+            const isOpenPalm = middleUp && ringUp && pinkyUp && !isPinching;
+
+            if (isOpenPalm) {
+                // ====================
+                //    ERASER MODE
+                // ====================
+                isDrawing = false;
+                const eraserRadius = 50; // Huge radius for wiping
+
+                // Draw Eraser visual on screen
+                cursorCtx.beginPath();
+                cursorCtx.arc(smoothedX, smoothedY, eraserRadius, 0, 2 * Math.PI);
+                cursorCtx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                cursorCtx.fill();
+                cursorCtx.strokeStyle = "#fff";
+                cursorCtx.stroke();
+
+                // Actually Erase the drawing canvas
+                drawCtx.globalCompositeOperation = "destination-out";
+                drawCtx.beginPath();
+                drawCtx.arc(smoothedX, smoothedY, eraserRadius, 0, 2 * Math.PI);
+                drawCtx.fill();
+                drawCtx.globalCompositeOperation = "source-over"; // Reset to normal drawing
+
+            } else if (isPinching) {
+                // ====================
+                //     DRAW MODE
+                // ====================
+                cursorCtx.beginPath();
+                cursorCtx.arc(smoothedX, smoothedY, 10, 0, 2 * Math.PI);
+                cursorCtx.fillStyle = "#ff4757";
+                cursorCtx.fill();
+
+                if (!isDrawing) {
+                    isDrawing = true;
+                    lastDrawX = smoothedX;
+                    lastDrawY = smoothedY;
+                }
+
+                drawCtx.beginPath();
+                drawCtx.moveTo(lastDrawX, lastDrawY);
+                drawCtx.lineTo(smoothedX, smoothedY);
+                drawCtx.strokeStyle = "#ff4757";
+                drawCtx.lineWidth = Math.max(5, drawCanvas.width * 0.008);
+                drawCtx.lineCap = "round";
+                drawCtx.lineJoin = "round"; // Makes corners smoother
+                drawCtx.stroke();
+
+                lastDrawX = smoothedX;
+                lastDrawY = smoothedY;
+
+            } else {
+                // ====================
+                //     HOVER MODE
+                // ====================
+                isDrawing = false;
+                cursorCtx.beginPath();
+                cursorCtx.arc(smoothedX, smoothedY, 8, 0, 2 * Math.PI);
+                cursorCtx.fillStyle = "#1e90ff"; // Blue dot when just moving
+                cursorCtx.fill();
+            }
+        }
+
+        clearBtn.addEventListener("click", () => {
+            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        });
+
+        initApp();
+    </script>
+</body>
+</html>
