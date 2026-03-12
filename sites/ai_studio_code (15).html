@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fast Fullscreen Hand Drawing</title>
+    <!-- Preload MediaPipe to fetch it as fast as possible -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" as="script">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js" crossorigin="anonymous"></script>
+    
+    <style>
+        /* Make everything strictly full screen and prevent scrolling */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            touch-action: none; /* Prevents pull-to-refresh on mobile */
+        }
+
+        /* Stack all media layers exactly on top of each other */
+        .fullscreen-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover; /* Fills screen completely without stretching */
+            transform: scaleX(-1); /* Mirrors the screen like a real selfie camera */
+        }
+
+        #video { z-index: 1; }
+        #draw_canvas { z-index: 2; }
+        #cursor_canvas { z-index: 3; }
+
+        /* UI Styling */
+        #ui-layer {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            pointer-events: none; /* Lets clicks pass through the background */
+            max-width: 250px;
+        }
+
+        h3 { margin: 0 0 10px 0; font-size: 18px; color: #4CAF50;}
+        p { margin: 5px 0; font-size: 14px; }
+        
+        button {
+            pointer-events: auto;
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+        button:active { background: #ff6b81; }
+
+        .loader {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #fff;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h3>Hand Drawing</h3>
+        <p id="status"><span class="loader"></span> Loading Engine...</p>
+        <p style="font-size: 12px; color: #ccc;">Pinch index finger & thumb to draw.</p>
+        <button id="clearBtn" style="display: none;">Clear Screen</button>
+    </div>
+
+    <!-- The Video and Canvases are separated for max performance -->
+    <video id="video" class="fullscreen-layer" autoplay playsinline></video>
+    <canvas id="draw_canvas" class="fullscreen-layer"></canvas>
+    <canvas id="cursor_canvas" class="fullscreen-layer"></canvas>
+
+    <script type="module">
+        import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+        const video = document.getElementById("video");
+        const drawCanvas = document.getElementById("draw_canvas");
+        const drawCtx = drawCanvas.getContext("2d");
+        const cursorCanvas = document.getElementById("cursor_canvas");
+        const cursorCtx = cursorCanvas.getContext("2d");
+        const statusText = document.getElementById("status");
+        const clearBtn = document.getElementById("clearBtn");
+
+        let handLandmarker;
+        let isDrawing = false;
+        let lastX = 0, lastY = 0;
+        let lastVideoTime = -1;
+
+        // Initialize App: Load Camera AND Model at the same time for speed
+        async function initApp() {
+            try {
+                // 1. Request Camera Access
+                const cameraPromise = navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+                }).then(stream => {
+                    video.srcObject = stream;
+                    return new Promise(resolve => {
+                        video.onloadeddata = () => resolve(true);
+                    });
+                });
+
+                // 2. Load AI Model
+                const visionPromise = FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+                ).then(vision => HandLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                        delegate: "GPU" // Force GPU usage for speed
+                    },
+                    runningMode: "VIDEO",
+                    numHands: 1
+                }));
+
+                // Wait for both to finish simultaneously! (FIXED VARIABLE ASSIGNMENT HERE)
+                const results = await Promise.all([cameraPromise, visionPromise]);
+                handLandmarker = results[1]; // Get the loaded model from the array
+
+                // Setup Canvas matching exact video resolution
+                setCanvasSize();
+                window.addEventListener("resize", setCanvasSize);
+
+                statusText.innerHTML = "✅ Ready! Pinch to draw.";
+                clearBtn.style.display = "block";
+
+                // Start AI Loop
+                detectHands();
+
+            } catch (error) {
+                statusText.innerHTML = "❌ Error: " + error.message;
+                console.error(error);
+            }
+        }
+
+        function setCanvasSize() {
+            // Set internal canvas resolution to match video feed resolution
+            drawCanvas.width = video.videoWidth;
+            drawCanvas.height = video.videoHeight;
+            cursorCanvas.width = video.videoWidth;
+            cursorCanvas.height = video.videoHeight;
+        }
+
+        function detectHands() {
+            let startTimeMs = performance.now();
+            
+            if (video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
+                lastVideoTime = video.currentTime;
+                
+                // Detect hand on the current video frame
+                const results = handLandmarker.detectForVideo(video, startTimeMs);
+                
+                // Clear the cursor canvas every frame so the blue/red dot doesn't leave a trail
+                cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+
+                if (results.landmarks && results.landmarks.length > 0) {
+                    processHand(results.landmarks[0]);
+                } else {
+                    isDrawing = false; // Pen up if hand leaves screen
+                }
+            }
+            
+            requestAnimationFrame(detectHands); // Loop endlessly at monitor refresh rate
+        }
+
+        function processHand(landmarks) {
+            const indexTip = landmarks[8];
+            const thumbTip = landmarks[4];
+
+            // Convert Normalized AI Coordinates (0 to 1) to Canvas Pixels
+            const x1 = indexTip.x * drawCanvas.width;
+            const y1 = indexTip.y * drawCanvas.height;
+            const x2 = thumbTip.x * drawCanvas.width;
+            const y2 = thumbTip.y * drawCanvas.height;
+
+            // Calculate distance between thumb and index finger
+            const pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+            const isPinching = pinchDistance < 0.05; // 0.05 is the "pinch threshold"
+
+            // Draw Cursor Dot
+            cursorCtx.beginPath();
+            cursorCtx.arc(x1, y1, isPinching ? 12 : 8, 0, 2 * Math.PI);
+            cursorCtx.fillStyle = isPinching ? "#ff4757" : "#1e90ff"; // Red when pinching, blue otherwise
+            cursorCtx.fill();
+
+            // Draw Lines on the separate drawing canvas
+            if (isPinching) {
+                if (!isDrawing) {
+                    isDrawing = true; // Pen Down
+                    lastX = x1;
+                    lastY = y1;
+                }
+
+                drawCtx.beginPath();
+                drawCtx.moveTo(lastX, lastY);
+                drawCtx.lineTo(x1, y1);
+                drawCtx.strokeStyle = "#ff4757"; // Line color
+                drawCtx.lineWidth = Math.max(5, drawCanvas.width * 0.008); // Dynamic line thickness
+                drawCtx.lineCap = "round";
+                drawCtx.stroke();
+
+                lastX = x1;
+                lastY = y1;
+            } else {
+                isDrawing = false; // Pen Up
+            }
+        }
+
+        // Clear button logic
+        clearBtn.addEventListener("click", () => {
+            drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        });
+
+        // Run the app
+        initApp();
+    </script>
+</body>
+</html>
