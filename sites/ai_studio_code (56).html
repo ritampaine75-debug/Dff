@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EyeDraw AI - Gaze Tracking Board</title>
+    
+    <!-- MediaPipe Face Mesh (includes Iris tracking) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --bg-dark: #050505;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-dark);
+            color: white; font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Video Feed (Hidden but active) */
+        #input_video {
+            position: fixed; top: 10px; right: 10px;
+            width: 160px; height: 120px; border-radius: 10px;
+            border: 2px solid var(--neon-blue); transform: scaleX(-1);
+            z-index: 100; background: black;
+        }
+
+        /* Canvas Layers */
+        #canvas-stack { position: relative; width: 100vw; height: 100vh; }
+        canvas { position: absolute; top: 0; left: 0; }
+        #drawCanvas { background: #0a0a0a; z-index: 1; }
+        #uiCanvas { z-index: 2; pointer-events: none; }
+
+        /* Cyber UI Panel */
+        .hud {
+            position: fixed; left: 20px; bottom: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px; border: 1px solid var(--neon-blue);
+            border-radius: 15px; z-index: 10;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            min-width: 250px;
+        }
+
+        .status-item { margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .status-val { color: var(--neon-blue); font-weight: bold; }
+
+        .loader-overlay {
+            position: fixed; inset: 0; background: black;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; z-index: 1000;
+        }
+
+        .eye-animation {
+            width: 100px; height: 50px; border: 3px solid var(--neon-blue);
+            border-radius: 0 100% 0 100%; transform: rotate(45deg);
+            margin-bottom: 20px; position: relative;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%, 90%, 100% { height: 50px; } 95% { height: 2px; } }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button {
+            background: none; border: 1px solid var(--neon-blue);
+            color: var(--neon-blue); padding: 8px; cursor: pointer;
+            border-radius: 5px; flex: 1;
+        }
+        button:hover { background: var(--neon-blue); color: black; }
+
+        #gaze-dot {
+            position: fixed; width: 20px; height: 20px;
+            border: 2px solid white; border-radius: 50%;
+            pointer-events: none; z-index: 99;
+            box-shadow: 0 0 15px var(--neon-blue);
+            transition: transform 0.1s ease-out;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="loader-overlay" id="loader">
+        <div class="eye-animation"></div>
+        <h2>SYNCING EYE TRACKING...</h2>
+        <p>Please stay centered in the camera</p>
+    </div>
+
+    <video id="input_video"></video>
+    <div id="gaze-dot"></div>
+
+    <div class="hud">
+        <div class="status-item">
+            <span>DRAWING:</span>
+            <span id="draw-state" class="status-val">OFF</span>
+        </div>
+        <div class="status-item">
+            <span>COLOR:</span>
+            <span id="color-name" class="status-val">CYAN</span>
+        </div>
+        <div class="status-item">
+            <span>GAZE X:</span>
+            <span id="pos-x" class="status-val">0</span>
+        </div>
+        <div class="btn-group">
+            <button onclick="downloadImg()">SAVE</button>
+            <button onclick="clearAll()">CLEAR</button>
+        </div>
+        <div style="font-size: 0.7rem; margin-top: 15px; color: #666;">
+            Wink LEFT: Draw | Wink RIGHT: Color | Close Both: Clear
+        </div>
+    </div>
+
+    <div id="canvas-stack">
+        <canvas id="drawCanvas"></canvas>
+        <canvas id="uiCanvas"></canvas>
+    </div>
+
+    <script>
+        const video = document.getElementById('input_video');
+        const drawCanvas = document.getElementById('drawCanvas');
+        const uiCanvas = document.getElementById('uiCanvas');
+        const dctx = drawCanvas.getContext('2d');
+        const dot = document.getElementById('gaze-dot');
+        
+        let drawingActive = false;
+        let lastX = 0, lastY = 0;
+        let currentColorIdx = 0;
+        const colors = ['#00f3ff', '#ff00ff', '#00ff00', '#ffff00', '#ff0000'];
+
+        function resize() {
+            drawCanvas.width = window.innerWidth;
+            drawCanvas.height = window.innerHeight;
+            uiCanvas.width = window.innerWidth;
+            uiCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Initialize Face Mesh with Iris tracking
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true, // Crucial for Iris tracking
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        faceMesh.onResults(onResults);
+
+        const camera = new Camera(video, {
+            onFrame: async () => {
+                await faceMesh.send({image: video});
+            },
+            width: 640, height: 480
+        });
+        camera.start();
+
+        // Smoothing variables
+        let smoothX = 0, smoothY = 0;
+
+        function onResults(results) {
+            document.getElementById('loader').style.display = 'none';
+            
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                const landmarks = results.multiFaceLandmarks[0];
+
+                // 1. Iris Tracking Logic (Landmarks 468-472 is left iris, 473-477 is right)
+                const leftIris = landmarks[468];
+                const rightIris = landmarks[473];
+                
+                // Average iris position (Mirrored)
+                const avgX = 1 - ((leftIris.x + rightIris.x) / 2);
+                const avgY = (leftIris.y + rightIris.y) / 2;
+
+                // 2. Sensitivity Scaling (Map eye movement range to screen)
+                // We use a centered offset to make small eye movements cover the screen
+                const targetX = (avgX - 0.5) * 3 + 0.5;
+                const targetY = (avgY - 0.5) * 3 + 0.5;
+
+                // 3. Exponential Smoothing (Removes jitters)
+                smoothX += (targetX - smoothX) * 0.15;
+                smoothY += (targetY - smoothY) * 0.15;
+
+                const screenX = smoothX * drawCanvas.width;
+                const screenY = smoothY * drawCanvas.height;
+
+                dot.style.left = screenX + 'px';
+                dot.style.top = screenY + 'px';
+                document.getElementById('pos-x').innerText = Math.round(screenX);
+
+                // 4. Feature: Blink/Wink Detection
+                // Landmarks for eyes (top/bottom lids)
+                const eyeL = landmarks[159].y - landmarks[145].y; // Left Eye Aperture
+                const eyeR = landmarks[386].y - landmarks[374].y; // Right Eye Aperture
+
+                const blinkThreshold = 0.012;
+
+                // Feature: Wink Left to Toggle Draw
+                if (eyeL < blinkThreshold && eyeR > blinkThreshold) {
+                    toggleDrawing(true);
+                } 
+                // Feature: Wink Right to Cycle Color
+                else if (eyeR < blinkThreshold && eyeL > blinkThreshold) {
+                    cycleColor();
+                }
+                // Feature: Close both to Clear
+                else if (eyeL < blinkThreshold && eyeR < blinkThreshold) {
+                    clearAll();
+                }
+
+                if (drawingActive) {
+                    draw(screenX, screenY);
+                } else {
+                    lastX = screenX; lastY = screenY;
+                }
+            }
+        }
+
+        function draw(x, y) {
+            dctx.beginPath();
+            dctx.lineWidth = 4;
+            dctx.lineCap = 'round';
+            dctx.strokeStyle = colors[currentColorIdx];
+            dctx.shadowBlur = 10;
+            dctx.shadowColor = colors[currentColorIdx];
+            dctx.moveTo(lastX, lastY);
+            dctx.lineTo(x, y);
+            dctx.stroke();
+            lastX = x; lastY = y;
+        }
+
+        // Feature: Color Cycling Logic
+        let lastColorSwitch = 0;
+        function cycleColor() {
+            const now = Date.now();
+            if (now - lastColorSwitch > 1000) { // Debounce 1 sec
+                currentColorIdx = (currentColorIdx + 1) % colors.length;
+                document.getElementById('color-name').innerText = colors[currentColorIdx];
+                document.getElementById('color-name').style.color = colors[currentColorIdx];
+                lastColorSwitch = now;
+            }
+        }
+
+        // Feature: Drawing Toggle
+        let lastToggle = 0;
+        function toggleDrawing(forceState) {
+            const now = Date.now();
+            if (now - lastToggle > 1000) {
+                drawingActive = !drawingActive;
+                document.getElementById('draw-state').innerText = drawingActive ? "ON" : "OFF";
+                document.getElementById('draw-state').style.color = drawingActive ? "#00ff00" : "red";
+                dot.style.borderColor = drawingActive ? colors[currentColorIdx] : "white";
+                lastToggle = now;
+            }
+        }
+
+        function clearAll() {
+            dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        }
+
+        function downloadImg() {
+            const link = document.createElement('a');
+            link.download = 'eyedraw-export.png';
+            link.href = drawCanvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
