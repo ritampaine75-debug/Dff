@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Mirror - See Your Beauty</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #ffd6e8;
+            --secondary: #fff0f6;
+            --accent: #ff6b9d;
+            --dark: #2d1b2e;
+            --light: #ffffff;
+            --gold: #ffd700;
+            --shadow: 0 20px 60px rgba(255, 107, 157, 0.2);
+            --glow: 0 0 30px rgba(255, 215, 232, 0.5);
+        }
+
+        body {
+            background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--dark);
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .mirror-frame {
+            position: relative;
+            width: min(90vw, 400px);
+            height: min(90vh, 600px);
+            background: var(--light);
+            border-radius: 30px;
+            box-shadow: var(--shadow), inset 0 0 40px rgba(255, 215, 232, 0.3);
+            overflow: hidden;
+            border: 8px solid;
+            border-image: linear-gradient(135deg, #ffd6e8, #ff6b9d, #ffd6e8) 1;
+            animation: mirrorGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes mirrorGlow {
+            0%, 100% {
+                box-shadow: var(--shadow), inset 0 0 40px rgba(255, 215, 232, 0.3);
+            }
+            50% {
+                box-shadow: var(--shadow), inset 0 0 60px rgba(255, 215, 232, 0.5), 0 0 40px rgba(255, 215, 232, 0.4);
+            }
+        }
+
+        .mirror-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            display: block;
+        }
+
+        .mirror-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .top-decorations {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .sparkle {
+            font-size: 20px;
+            animation: sparkleFloat 2.5s ease-in-out infinite;
+        }
+
+        .sparkle:nth-child(1) { animation-delay: 0s; }
+        .sparkle:nth-child(2) { animation-delay: 0.8s; }
+        .sparkle:nth-child(3) { animation-delay: 1.6s; }
+
+        @keyframes sparkleFloat {
+            0%, 100% {
+                opacity: 0.3;
+                transform: translateY(0) scale(0.8);
+            }
+            50% {
+                opacity: 1;
+                transform: translateY(-8px) scale(1);
+            }
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 20;
+            padding: 0 15px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff6b9d, #ffd6e8);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(255, 107, 157, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(255, 107, 157, 0.4);
+        }
+
+        button:active {
+            transform: translateY(-1px);
+        }
+
+        .stats {
+            position: absolute;
+            top: 30px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .status-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-message.active {
+            opacity: 1;
+        }
+
+        .loading {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .bottom-text {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #999;
+            text-align: center;
+            z-index: 10;
+        }
+
+        /* Lighting adjustment visual indicator */
+        .lighting-bar {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            width: 40px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            border: 2px solid rgba(255, 215, 232, 0.5);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 5px;
+            z-index: 15;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .lighting-bar.active {
+            opacity: 1;
+        }
+
+        .light-level {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(180deg, #ff6b9d, #ffd700);
+            border-radius: 15px;
+            transition: height 0.2s ease;
+        }
+
+        .device-settings {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 15;
+        }
+
+        .settings-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .settings-btn:hover {
+            background: #ff6b9d;
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 25px;
+            max-width: 90%;
+            width: 350px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+
+        select, input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            color: var(--dark);
+            cursor: pointer;
+        }
+
+        select:focus, input[type="range"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px 15px;
+            font-size: 13px;
+        }
+
+        .close-modal {
+            background: linear-gradient(135deg, #ddd, #eee);
+            color: var(--dark);
+        }
+
+        @media (max-height: 600px) {
+            .mirror-frame {
+                height: 100vh;
+                width: 100%;
+                border-radius: 0;
+                border: none;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="mirror-frame">
+            <div class="mirror-content">
+                <video id="video" playsinline autoplay muted></video>
+                <canvas id="lightingCanvas" style="display: none;"></canvas>
+                <div class="mirror-overlay"></div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    Light: <span id="lightLevel">--</span>%
+                </div>
+                <div class="stat-item">
+                    Temp: <span id="tempLevel">37°C</span>
+                </div>
+            </div>
+
+            <div class="top-decorations">
+                <span class="sparkle">✨</span>
+                <span style="font-size: 24px; font-weight: bold; color: #ff6b9d;">Mirror</span>
+                <span class="sparkle">✨</span>
+            </div>
+
+            <div class="controls">
+                <button id="captureBtn">📸 Capture</button>
+                <button id="toggleFlash">💡 Flash</button>
+            </div>
+
+            <div class="lighting-bar" id="lightingBar">
+                <div class="light-level" id="lightLevel2"></div>
+            </div>
+
+            <div class="device-settings">
+                <button class="settings-btn" id="settingsBtn">⚙️</button>
+            </div>
+
+            <div class="bottom-text">
+                Made with 💕 for you
+            </div>
+        </div>
+
+        <div class="status-message" id="statusMessage">
+            <div class="loading"></div>
+            <span id="statusText">Loading your mirror...</span>
+        </div>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-title">Camera Settings</div>
+            
+            <div class="setting-group">
+                <label class="setting-label">Camera</label>
+                <select id="cameraSelect">
+                    <option value="">Select Camera</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">Brightness</label>
+                <input type="range" id="brightnessSlider" min="-100" max="100" value="0">
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">Contrast</label>
+                <input type="range" id="contrastSlider" min="-50" max="50" value="0">
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">Auto Lighting</label>
+                <select id="autoLightingToggle">
+                    <option value="on">On</option>
+                    <option value="off">Off</option>
+                </select>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="close-modal" id="closeSettingsBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== MIRROR APP MAIN CODE ==========
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('lightingCanvas');
+        const ctx = canvas?.getContext('2d');
+        const statusMessage = document.getElementById('statusMessage');
+        const statusText = document.getElementById('statusText');
+        const lightLevelDisplay = document.getElementById('lightLevel');
+        const lightLevel2Display = document.getElementById('lightLevel2');
+        const lightingBar = document.getElementById('lightingBar');
+        const captureBtn = document.getElementById('captureBtn');
+        const toggleFlashBtn = document.getElementById('toggleFlash');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const brightnessSlider = document.getElementById('brightnessSlider');
+        const contrastSlider = document.getElementById('contrastSlider');
+        const autoLightingToggle = document.getElementById('autoLightingToggle');
+
+        let stream = null;
+        let currentLightLevel = 50;
+        let autoLightingEnabled = true;
+        let isFlashOn = false;
+
+        // ========== INITIALIZE CAMERA ==========
+        async function initCamera() {
+            showStatus('Loading your mirror...', true);
+            
+            try {
+                // Request camera with video constraints
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    showStatus('Your mirror is ready!', false);
+                    startLightingAnalysis();
+                    populateCameras();
+                };
+
+            } catch (err) {
+                console.error('Camera error:', err);
+                showStatus('Please allow camera access to use the mirror', false);
+            }
+        }
+
+        // ========== POPULATE AVAILABLE CAMERAS ==========
+        async function populateCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = '';
+                cameras.forEach((camera, index) => {
+                    const option = document.createElement('option');
+                    option.value = camera.deviceId;
+                    option.text = camera.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                if (cameras.length > 0) {
+                    cameraSelect.value = cameras[0].deviceId;
+                }
+            } catch (err) {
+                console.error('Error enumerating cameras:', err);
+            }
+        }
+
+        // ========== LIGHTING ANALYSIS & AUTO-ADJUSTMENT ==========
+        function startLightingAnalysis() {
+            setInterval(() => {
+                if (!ctx || !stream) return;
+
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                let brightness = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    brightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+                }
+                brightness = brightness / (data.length / 4);
+                currentLightLevel = Math.round((brightness / 255) * 100);
+
+                // Update display
+                lightLevelDisplay.textContent = currentLightLevel;
+                lightLevel2Display.style.height = currentLightLevel + '%';
+
+                // Show lighting bar when checking
+                lightingBar.classList.add('active');
+                setTimeout(() => lightingBar.classList.remove('active'), 2000);
+
+                // Auto-lighting adjustment
+                if (autoLightingEnabled) {
+                    applyAutoLighting();
+                }
+
+                // Apply manual brightness/contrast
+                applyFilters();
+            }, 500);
+        }
+
+        // ========== AUTO LIGHTING WITH SIDE LIGHT ==========
+        function applyAutoLighting() {
+            const videoElement = video.parentElement;
+            
+            if (currentLightLevel < 30) {
+                // Very dim - add strong side lighting with warm glow
+                const gradient = `
+                    linear-gradient(90deg, 
+                        rgba(255, 200, 100, 0.15) 0%,
+                        transparent 50%,
+                        rgba(255, 150, 100, 0.1) 100%
+                    )
+                `;
+                videoElement.style.boxShadow = `
+                    inset -40px 0 80px rgba(255, 180, 100, 0.2),
+                    inset 20px 0 60px rgba(255, 200, 150, 0.15)
+                `;
+                // Add subtle filter to brighten image
+                video.style.filter = `brightness(1.3) contrast(1.1) saturate(1.1)`;
+            } else if (currentLightLevel < 50) {
+                // Low light - add moderate side light
+                videoElement.style.boxShadow = `
+                    inset -30px 0 60px rgba(255, 200, 150, 0.15),
+                    inset 15px 0 40px rgba(255, 220, 180, 0.1)
+                `;
+                video.style.filter = `brightness(1.15) contrast(1.05) saturate(1.05)`;
+            } else if (currentLightLevel > 80) {
+                // Bright light - reduce exposure
+                videoElement.style.boxShadow = `
+                    inset -20px 0 40px rgba(100, 100, 100, 0.08)
+                `;
+                video.style.filter = `brightness(0.95) contrast(1) saturate(1)`;
+            } else {
+                // Normal lighting - minimal adjustment
+                videoElement.style.boxShadow = `
+                    inset -10px 0 20px rgba(200, 200, 200, 0.05)
+                `;
+                video.style.filter = `brightness(1) contrast(1) saturate(1)`;
+            }
+        }
+
+        // ========== APPLY MANUAL FILTERS ==========
+        function applyFilters() {
+            const brightness = 100 + parseInt(brightnessSlider.value);
+            const contrast = 100 + parseInt(contrastSlider.value);
+            const currentFilter = video.style.filter || 'brightness(1) contrast(1) saturate(1)';
+            
+            // Parse existing saturation value
+            const saturationMatch = currentFilter.match(/saturate\(([\d.]+)\)/);
+            const saturation = saturationMatch ? saturationMatch[1] : 1;
+
+            video.style.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation})`;
+        }
+
+        // ========== FLASH/LIGHT EFFECT ==========
+        function toggleFlash() {
+            isFlashOn = !isFlashOn;
+            const mirrorContent = document.querySelector('.mirror-content');
+            
+            if (isFlashOn) {
+                mirrorContent.style.boxShadow = `
+                    inset 0 0 100px rgba(255, 255, 255, 0.4),
+                    inset -50px 0 100px rgba(255, 220, 180, 0.3)
+                `;
+                video.style.filter = `brightness(1.4) contrast(1.15)`;
+                toggleFlashBtn.style.background = 'linear-gradient(135deg, #ffd700, #ffed4e)';
+                toggleFlashBtn.style.color = '#333';
+            } else {
+                applyAutoLighting();
+                toggleFlashBtn.style.background = 'linear-gradient(135deg, #ff6b9d, #ffd6e8)';
+                toggleFlashBtn.style.color = 'white';
+            }
+        }
+
+        // ========== CAPTURE SCREENSHOT ==========
+        function captureScreen() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Mirror effect (flip horizontally)
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0);
+            
+            // Download image
+            const link = document.createElement('a');
+            link.download = `mirror-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+            
+            showNotification('📸 Photo saved!');
+        }
+
+        // ========== SWITCH CAMERA ==========
+        async function switchCamera() {
+            const deviceId = cameraSelect.value;
+            if (!deviceId || !stream) return;
+
+            stream.getTracks().forEach(track => track.stop());
+
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                video.srcObject = newStream;
+                stream = newStream;
+                showNotification('✅ Camera switched!');
+            } catch (err) {
+                console.error('Camera switch error:', err);
+                showNotification('❌ Cannot switch camera');
+            }
+        }
+
+        // ========== UI HELPERS ==========
+        function showStatus(message, showLoader) {
+            statusText.textContent = message;
+            statusMessage.classList.toggle('active', showLoader);
+        }
+
+        function showNotification(message) {
+            statusText.textContent = message;
+            statusMessage.classList.add('active');
+            setTimeout(() => statusMessage.classList.remove('active'), 2000);
+        }
+
+        // ========== EVENT LISTENERS ==========
+        captureBtn.addEventListener('click', captureScreen);
+        toggleFlashBtn.addEventListener('click', toggleFlash);
+        settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
+        closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+        
+        cameraSelect.addEventListener('change', switchCamera);
+        brightnessSlider.addEventListener('input', applyFilters);
+        contrastSlider.addEventListener('input', applyFilters);
+        
+        autoLightingToggle.addEventListener('change', (e) => {
+            autoLightingEnabled = e.target.value === 'on';
+            if (autoLightingEnabled) {
+                showNotification('✨ Auto-lighting enabled');
+            }
+        });
+
+        // Close modal on outside click
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('active');
+            }
+        });
+
+        // ========== INITIALIZE ON LOAD ==========
+        window.addEventListener('load', () => {
+            initCamera();
+            
+            // Update temperature (simulated)
+            setInterval(() => {
+                const now = new Date();
+                const temp = 36 + Math.random() * 2;
+                document.getElementById('tempLevel').textContent = temp.toFixed(1) + '°C';
+            }, 5000);
+        });
+
+        // Handle visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && stream) {
+                stream.getTracks().forEach(track => track.stop());
+            } else if (!document.hidden && !stream) {
+                initCamera();
+            }
+        });
+    </script>
+</body>
+</html>
