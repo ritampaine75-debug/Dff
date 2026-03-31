@@ -2,195 +2,201 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Air Paint</title>
-    <!-- MediaPipe Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Face Analysis - Fixed</title>
+    
+    <!-- Legacy MediaPipe Libraries (Most stable for single HTML files) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
     <style>
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background: #000; font-family: sans-serif; 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
         }
-
-        #container { position: relative; width: 100vw; height: 100vh; }
-
-        /* Full screen video and canvas */
-        #webcam, #drawCanvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover; /* Ensures it fills screen without small popup look */
-            transform: scaleX(-1); /* Mirrors the camera */
+        .app-container {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
         }
+        @media (max-width: 800px) { .app-container { grid-template-columns: 1fr; } }
 
-        #drawCanvas { z-index: 2; pointer-events: none; }
-        #webcam { z-index: 1; opacity: 0.4; }
+        /* Video Styling */
+        .video-box { position: relative; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 4/3; }
+        #input_video { display: none; }
+        #output_canvas { width: 100%; height: 100%; transform: scaleX(-1); } /* Mirror effect */
 
         /* UI Elements */
-        #overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: white; text-align: center; padding: 20px;
+        h2 { color: #4ecca3; margin-bottom: 10px; font-size: 1.2rem; }
+        .stats-panel { background: #0f3460; padding: 15px; border-radius: 10px; }
+        .stat-item { 
+            display: flex; justify-content: space-between; 
+            padding: 8px 0; border-bottom: 1px solid #1a1a2e; font-size: 14px;
         }
+        .stat-value { color: #4ecca3; font-weight: bold; }
 
-        .controls {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            z-index: 50; display: flex; gap: 15px;
+        .btn-start {
+            width: 100%; padding: 15px; margin-top: 10px;
+            background: #4ecca3; border: none; border-radius: 5px;
+            color: #1a1a2e; font-weight: bold; cursor: pointer;
         }
-
-        button {
-            padding: 15px 30px; font-size: 18px; border-radius: 50px;
-            border: none; background: #007bff; color: white; font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        #clearBtn { background: #ff4757; }
         
-        .loading-spinner {
-            border: 4px solid #f3f3f3; border-top: 4px solid #3498db;
-            border-radius: 50%; width: 40px; height: 40px;
-            animation: spin 2s linear infinite; margin-bottom: 20px;
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a1a2e; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100;
         }
-
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid #0f3460;
+            border-top: 5px solid #4ecca3; border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <!-- Startup Overlay (Crucial for Mobile Permissions) -->
-    <div id="overlay">
-        <div id="loader" class="loading-spinner"></div>
-        <h2 id="statusText">Loading AI Model...</h2>
-        <p>Please wait a few seconds</p>
-        <button id="startBtn" style="display:none;">Start Drawing</button>
+    <div id="loader">
+        <div class="spinner"></div>
+        <p style="margin-top: 20px;">Initializing Face AI...</p>
     </div>
 
-    <div id="container">
-        <video id="webcam" autoplay playsinline></video>
-        <canvas id="drawCanvas"></canvas>
-        
-        <div class="controls">
-            <button id="clearBtn">Clear</button>
+    <div class="app-container">
+        <!-- Left: Video -->
+        <div>
+            <h2>LIVE CAMERA FEED</h2>
+            <div class="video-box">
+                <video id="input_video"></video>
+                <canvas id="output_canvas"></canvas>
+            </div>
+            <button class="btn-start" onclick="toggleCamera()">START ANALYSIS</button>
+        </div>
+
+        <!-- Right: Stats -->
+        <div class="stats-panel">
+            <h2>ANALYSIS DATA</h2>
+            <div class="stat-item">
+                <span>Face Detected:</span>
+                <span class="stat-value" id="isFace">No</span>
+            </div>
+            <div class="stat-item">
+                <span>Confidence:</span>
+                <span class="stat-value" id="confidence">0%</span>
+            </div>
+            <div class="stat-item">
+                <span>Face Center X:</span>
+                <span class="stat-value" id="posX">--</span>
+            </div>
+            <div class="stat-item">
+                <span>Face Center Y:</span>
+                <span class="stat-value" id="posY">--</span>
+            </div>
+            
+            <h2 style="margin-top: 20px;">KEYPOINTS</h2>
+            <div id="keypointList">
+                <div class="stat-item"><span>Left Eye:</span> <span id="kp1" class="stat-value">--</span></div>
+                <div class="stat-item"><span>Right Eye:</span> <span id="kp0" class="stat-value">--</span></div>
+                <div class="stat-item"><span>Nose:</span> <span id="kp2" class="stat-value">--</span></div>
+                <div class="stat-item"><span>Mouth:</span> <span id="kp3" class="stat-value">--</span></div>
+            </div>
         </div>
     </div>
 
-<script type="module">
-    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loader = document.getElementById('loader');
 
-    const video = document.getElementById("webcam");
-    const canvas = document.getElementById("drawCanvas");
-    const ctx = canvas.getContext("2d");
-    const overlay = document.getElementById("overlay");
-    const startBtn = document.getElementById("startBtn");
-    const statusText = document.getElementById("statusText");
-    const loader = document.getElementById("loader");
+        let cameraStarted = false;
+        let cameraObj = null;
 
-    let handLandmarker = undefined;
-    let lastVideoTime = -1;
-    let lastPoint = null;
+        function onResults(results) {
+            // Hide loader once results start coming
+            loader.style.display = 'none';
 
-    // 1. Initialize AI Model
-    async function setupModel() {
-        try {
-            const vision = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-            );
-            handLandmarker = await HandLandmarker.createFromOptions(vision, {
-                baseOptions: {
-                    modelAssetPath: `https://storage.googleapis.com/mediapipe-tasks/hand_landmarker/hand_landmarker.task`,
-                    delegate: "GPU"
-                },
-                runningMode: "VIDEO",
-                numHands: 1
-            });
-            
-            // UI Update
-            loader.style.display = "none";
-            statusText.innerText = "Model Ready!";
-            startBtn.style.display = "block";
-        } catch (error) {
-            statusText.innerText = "Error loading AI. Refresh page.";
-            console.error(error);
-        }
-    }
+            // Draw Video Frame
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
-    // 2. Start Camera and App
-    async function startApp() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: "user",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
-            video.srcObject = stream;
-            
-            overlay.style.display = "none";
-            
-            // Set canvas size correctly
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            video.addEventListener("loadeddata", predictWebcam);
-        } catch (err) {
-            alert("Camera access denied or not found.");
-        }
-    }
+            if (results.detections.length > 0) {
+                const detection = results.detections[0];
+                document.getElementById('isFace').textContent = "Yes";
+                document.getElementById('confidence').textContent = Math.round(detection.score[0] * 100) + "%";
 
-    // 3. AI Detection Loop
-    async function predictWebcam() {
-        if (video.currentTime !== lastVideoTime) {
-            lastVideoTime = video.currentTime;
-            const startTimeMs = performance.now();
-            const results = handLandmarker.detectForVideo(video, startTimeMs);
-
-            if (results.landmarks && results.landmarks.length > 0) {
-                // Landmark 8 is Index Finger Tip
-                const finger = results.landmarks[0][8];
+                // Draw Detection Box
+                drawRectangle(canvasCtx, detection.boundingBox, {color: '#4ecca3', lineWidth: 4});
                 
-                // Map coordinates (Note: scaleX(-1) mirrors X)
-                const x = finger.x * canvas.width;
-                const y = finger.y * canvas.height;
+                // Draw Landmarks
+                drawConnectors(canvasCtx, detection.landmarks, null, {color: '#4ecca3', lineWidth: 2});
 
-                draw(x, y);
+                // Update Stats
+                const box = detection.boundingBox;
+                document.getElementById('posX').textContent = Math.round((box.xCenter * 100)) + "%";
+                document.getElementById('posY').textContent = Math.round((box.yCenter * 100)) + "%";
+
+                // Update Keypoints (Indices: 0:R-Eye, 1:L-Eye, 2:Nose, 3:Mouth)
+                const landmarks = detection.landmarks;
+                document.getElementById('kp0').textContent = Math.round(landmarks[0].x * 100) + "%";
+                document.getElementById('kp1').textContent = Math.round(landmarks[1].x * 100) + "%";
+                document.getElementById('kp2').textContent = Math.round(landmarks[2].x * 100) + "%";
+                document.getElementById('kp3').textContent = Math.round(landmarks[3].x * 100) + "%";
             } else {
-                lastPoint = null; // Finger lifted/lost
+                document.getElementById('isFace').textContent = "No";
+                document.getElementById('confidence').textContent = "0%";
+            }
+            canvasCtx.restore();
+        }
+
+        const faceDetection = new FaceDetection({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+        });
+
+        faceDetection.setOptions({
+            model: 'short',
+            minDetectionConfidence: 0.5
+        });
+
+        faceDetection.onResults(onResults);
+
+        function toggleCamera() {
+            if (!cameraStarted) {
+                cameraObj = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await faceDetection.send({image: videoElement});
+                    },
+                    width: 640,
+                    height: 480
+                });
+                cameraObj.start();
+                cameraStarted = true;
+                document.querySelector('.btn-start').textContent = "ANALYSIS RUNNING...";
+                document.querySelector('.btn-start').style.background = "#0f3460";
+                document.querySelector('.btn-start').style.color = "white";
             }
         }
-        requestAnimationFrame(predictWebcam);
-    }
 
-    // 4. Drawing function
-    function draw(x, y) {
-        ctx.strokeStyle = "#00FFCC"; // Only one color
-        ctx.lineWidth = 10;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-
-        if (lastPoint) {
-            ctx.beginPath();
-            ctx.moveTo(lastPoint.x, lastPoint.y);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-        }
-        lastPoint = { x, y };
-    }
-
-    // Buttons
-    startBtn.addEventListener("click", startApp);
-    document.getElementById("clearBtn").addEventListener("click", () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
-
-    // Handle screen rotation
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
-
-    setupModel();
-</script>
+        // Emergency loader hide if failed to connect in 10 seconds
+        setTimeout(() => {
+            if(loader.style.display !== 'none') {
+                loader.innerHTML = "<p>Taking too long? <br> Make sure you are using <b>HTTPS</b> or <b>Localhost</b>.</p>";
+            }
+        }, 10000);
+    </script>
 </body>
 </html>
