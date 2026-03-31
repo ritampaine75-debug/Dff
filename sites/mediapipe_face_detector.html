@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Face Detection - Real-Time Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1400px;
+            width: 100%;
+            padding: 30px;
+            overflow: hidden;
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        @media (max-width: 1200px) {
+            .main-content { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 768px) {
+            .main-content { grid-template-columns: 1fr; }
+        }
+        .video-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover { background: #c0392b; }
+        .stats-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .stat-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .stat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        .status-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .status-text {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        .face-count {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 12px;
+            border-radius: 8px;
+            color: #856404;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 12px;
+            border-radius: 8px;
+            color: #721c24;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 12px;
+            border-radius: 8px;
+            color: #155724;
+            font-size: 13px;
+        }
+        .details-table {
+            width: 100%;
+            font-size: 13px;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+        .details-table tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .details-table td {
+            padding: 10px 0;
+        }
+        .details-table td:first-child {
+            color: #888;
+            font-weight: 600;
+        }
+        .details-table td:last-child {
+            text-align: right;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .feature-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .feature-name {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .feature-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        .spinner {
+            border: 3px solid #e0e0e0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .info-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #764ba2;
+        }
+        .info-title {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .info-content {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+        .metric-label {
+            color: #666;
+            font-weight: 600;
+        }
+        .metric-value {
+            color: #667eea;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 MediaPipe Face Detection & Analysis</h1>
+        <p class="subtitle">Real-time facial detection with precise landmark tracking</p>
+        
+        <div class="main-content">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="camera-wrapper">
+                    <video id="video" width="480" height="480"></video>
+                    <canvas id="canvas" width="480" height="480"></canvas>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="initCamera()">🎬 Start Camera</button>
+                    <button class="btn-danger" onclick="stopCamera()">⏹️ Stop</button>
+                </div>
+                <div id="warning" class="warning" style="display:none;">
+                    ⚠️ <span id="warningText">No face detected. Please position your face in front of camera.</span>
+                </div>
+                <div id="success" class="success" style="display:none;">
+                    ✓ <span id="successText">Face detected and analyzed</span>
+                </div>
+            </div>
+
+            <!-- Center Panel - Face Detection Stats -->
+            <div class="stats-panel">
+                <div class="status-box">
+                    <div class="status-text">📊 Detection Status</div>
+                    <div id="statusMessage">Ready to detect faces</div>
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <div>Loading MediaPipe...</div>
+                    </div>
+                </div>
+
+                <div class="face-count" id="faceCount" style="display:none;">
+                    👤 Detected <span id="faceNumber">0</span> face(s)
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">Detection Confidence</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div class="stat-bar">
+                                <div class="stat-bar-fill" id="confidenceBar"></div>
+                            </div>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 700; color: #667eea; min-width: 60px;" id="confidenceValue">0%</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-label">Face Detection Score</div>
+                    <div class="stat-value" id="detectionScore">0.00</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-title">📍 Face Position</div>
+                    <div id="facePosition">
+                        <div class="metric-row">
+                            <span class="metric-label">X Offset:</span>
+                            <span class="metric-value" id="posX">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Y Offset:</span>
+                            <span class="metric-value" id="posY">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Width:</span>
+                            <span class="metric-value" id="posW">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Height:</span>
+                            <span class="metric-value" id="posH">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Landmarks & Details -->
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <div class="stat-label">Face Landmarks Detected</div>
+                    <div class="stat-value" id="landmarkCount">0</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-title">🔍 Landmark Information</div>
+                    <div id="landmarkDetails">
+                        <div class="metric-row">
+                            <span class="metric-label">Right Eye:</span>
+                            <span class="metric-value" id="rightEye">Detecting...</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Left Eye:</span>
+                            <span class="metric-value" id="leftEye">Detecting...</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Nose:</span>
+                            <span class="metric-value" id="nose">Detecting...</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Mouth:</span>
+                            <span class="metric-value" id="mouth">Detecting...</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Chin:</span>
+                            <span class="metric-value" id="chin">Detecting...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-title">📐 Face Dimensions</div>
+                    <table class="details-table" id="faceDimensions">
+                        <tr>
+                            <td>Face Area</td>
+                            <td id="faceArea">0 px²</td>
+                        </tr>
+                        <tr>
+                            <td>Face Shape</td>
+                            <td id="faceShape">--</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-title">💡 Analysis Tips</div>
+                    <div class="info-content">
+                        • Ensure good lighting<br>
+                        • Face the camera directly<br>
+                        • Keep 30-60cm away<br>
+                        • Avoid harsh shadows
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let camera = null;
+        let detector = null;
+        let isRunning = false;
+
+        // Initialize MediaPipe FaceDetection
+        async function initMediaPipe() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('statusMessage').textContent = 'Loading MediaPipe Face Detection...';
+                
+                const FaceDetection = window.FaceDetection;
+                detector = await FaceDetection.FaceDetector.createFromOptions(FaceDetection, {
+                    baseOptions: {
+                        modelAssetPath: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm`
+                    },
+                    runningMode: "VIDEO",
+                    minDetectionConfidence: 0.5
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('statusMessage').textContent = '✓ MediaPipe Ready';
+                console.log('MediaPipe loaded successfully');
+            } catch (error) {
+                console.error('MediaPipe loading error:', error);
+                document.getElementById('statusMessage').textContent = '⚠️ MediaPipe loading failed';
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        async function initCamera() {
+            try {
+                if (!detector) await initMediaPipe();
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } },
+                    audio: false
+                });
+
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    isRunning = true;
+                    document.getElementById('statusMessage').textContent = '🎥 Detecting faces...';
+                    detectFaces();
+                };
+            } catch (error) {
+                console.error('Camera error:', error);
+                document.getElementById('warning').style.display = 'block';
+                document.getElementById('warningText').textContent = 'Unable to access camera. Check permissions.';
+            }
+        }
+
+        function stopCamera() {
+            isRunning = false;
+            const stream = video.srcObject;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('statusMessage').textContent = 'Camera stopped';
+            document.getElementById('faceCount').style.display = 'none';
+            document.getElementById('warning').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            resetStats();
+        }
+
+        async function detectFaces() {
+            if (!isRunning || !detector || video.readyState !== video.HAVE_ENOUGH_DATA) {
+                requestAnimationFrame(detectFaces);
+                return;
+            }
+
+            try {
+                // Draw video frame
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Detect faces
+                const results = await detector.detectForVideo(video, performance.now());
+
+                if (results.detections.length > 0) {
+                    document.getElementById('warning').style.display = 'none';
+                    document.getElementById('success').style.display = 'block';
+                    document.getElementById('faceCount').style.display = 'block';
+                    document.getElementById('faceNumber').textContent = results.detections.length;
+
+                    // Draw detections
+                    results.detections.forEach((detection, idx) => {
+                        drawDetection(detection, idx);
+                    });
+
+                    // Update stats with first face
+                    updateStats(results.detections[0]);
+                } else {
+                    document.getElementById('warning').style.display = 'block';
+                    document.getElementById('success').style.display = 'none';
+                    document.getElementById('faceCount').style.display = 'none';
+                    resetStats();
+                }
+            } catch (error) {
+                console.error('Detection error:', error);
+            }
+
+            requestAnimationFrame(detectFaces);
+        }
+
+        function drawDetection(detection, idx) {
+            const bbox = detection.boundingBox;
+            const x = bbox.originX * canvas.width;
+            const y = bbox.originY * canvas.height;
+            const w = bbox.width * canvas.width;
+            const h = bbox.height * canvas.height;
+
+            // Draw bounding box
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+
+            // Draw label
+            const confidence = (detection.categories[0]?.score * 100).toFixed(1);
+            ctx.fillStyle = '#667eea';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(`Face ${idx + 1}: ${confidence}%`, x, y - 10);
+
+            // Draw keypoints if available
+            if (detection.keypoints && detection.keypoints.length > 0) {
+                ctx.fillStyle = '#764ba2';
+                detection.keypoints.forEach(keypoint => {
+                    const kx = keypoint.x * canvas.width;
+                    const ky = keypoint.y * canvas.height;
+                    ctx.beginPath();
+                    ctx.arc(kx, ky, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+        }
+
+        function updateStats(detection) {
+            const bbox = detection.boundingBox;
+            const confidence = (detection.categories[0]?.score * 100).toFixed(1);
+            const score = detection.categories[0]?.score.toFixed(4) || '0.0000';
+
+            // Confidence
+            document.getElementById('confidenceValue').textContent = confidence + '%';
+            document.getElementById('confidenceBar').style.width = confidence + '%';
+            document.getElementById('detectionScore').textContent = score;
+
+            // Position
+            document.getElementById('posX').textContent = Math.round(bbox.originX * 100) + '%';
+            document.getElementById('posY').textContent = Math.round(bbox.originY * 100) + '%';
+            document.getElementById('posW').textContent = Math.round(bbox.width * 100) + '%';
+            document.getElementById('posH').textContent = Math.round(bbox.height * 100) + '%';
+
+            // Landmarks
+            const landmarks = detection.keypoints || [];
+            document.getElementById('landmarkCount').textContent = landmarks.length;
+
+            if (landmarks.length > 0) {
+                // Update landmark positions
+                const rightEyeIdx = 0, leftEyeIdx = 1, noseIdx = 2, mouth1Idx = 3, mouth2Idx = 4, chinIdx = 5;
+                
+                if (landmarks[rightEyeIdx]) 
+                    document.getElementById('rightEye').textContent = 
+                        `(${Math.round(landmarks[rightEyeIdx].x * 100)}%, ${Math.round(landmarks[rightEyeIdx].y * 100)}%)`;
+                if (landmarks[leftEyeIdx])
+                    document.getElementById('leftEye').textContent = 
+                        `(${Math.round(landmarks[leftEyeIdx].x * 100)}%, ${Math.round(landmarks[leftEyeIdx].y * 100)}%)`;
+                if (landmarks[noseIdx])
+                    document.getElementById('nose').textContent = 
+                        `(${Math.round(landmarks[noseIdx].x * 100)}%, ${Math.round(landmarks[noseIdx].y * 100)}%)`;
+                if (landmarks[mouth1Idx])
+                    document.getElementById('mouth').textContent = 
+                        `(${Math.round(landmarks[mouth1Idx].x * 100)}%, ${Math.round(landmarks[mouth1Idx].y * 100)}%)`;
+                if (landmarks[chinIdx])
+                    document.getElementById('chin').textContent = 
+                        `(${Math.round(landmarks[chinIdx].x * 100)}%, ${Math.round(landmarks[chinIdx].y * 100)}%)`;
+            }
+
+            // Face dimensions
+            const width = bbox.width * canvas.width;
+            const height = bbox.height * canvas.height;
+            const area = Math.round(width * height);
+            const aspectRatio = (width / height).toFixed(2);
+
+            document.getElementById('faceArea').textContent = area + ' px²';
+            
+            let shape = '--';
+            if (aspectRatio > 1.1) shape = 'Wide';
+            else if (aspectRatio < 0.9) shape = 'Tall';
+            else shape = 'Balanced';
+            document.getElementById('faceShape').textContent = shape;
+        }
+
+        function resetStats() {
+            document.getElementById('confidenceValue').textContent = '0%';
+            document.getElementById('confidenceBar').style.width = '0%';
+            document.getElementById('detectionScore').textContent = '0.00';
+            document.getElementById('landmarkCount').textContent = '0';
+            document.getElementById('posX').textContent = '--';
+            document.getElementById('posY').textContent = '--';
+            document.getElementById('posW').textContent = '--';
+            document.getElementById('posH').textContent = '--';
+            document.getElementById('rightEye').textContent = 'Detecting...';
+            document.getElementById('leftEye').textContent = 'Detecting...';
+            document.getElementById('nose').textContent = 'Detecting...';
+            document.getElementById('mouth').textContent = 'Detecting...';
+            document.getElementById('chin').textContent = 'Detecting...';
+            document.getElementById('faceArea').textContent = '0 px²';
+            document.getElementById('faceShape').textContent = '--';
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initMediaPipe();
+        });
+    </script>
+</body>
+</html>
