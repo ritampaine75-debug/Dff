@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Face Detection & Emotion Analysis</title>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+            padding: 30px;
+            overflow: hidden;
+        }
+        h1 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        @media (max-width: 900px) {
+            .main-content { grid-template-columns: 1fr; }
+        }
+        .video-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        video, canvas {
+            width: 100%;
+            border-radius: 12px;
+            background: #000;
+            display: block;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-primary {
+            background: #2a5298;
+            color: white;
+        }
+        .btn-primary:hover { background: #1e3c72; transform: translateY(-2px); }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .stats-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #2a5298;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+        .stat-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .stat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2a5298, #5a7cb8);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        .emotion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+        }
+        .emotion-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .emotion-item.active {
+            border-color: #2a5298;
+            background: #e6f1fb;
+            transform: scale(1.05);
+        }
+        .emotion-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .emotion-percentage {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2a5298;
+        }
+        .status-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .status-text {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #2a5298;
+            font-size: 14px;
+        }
+        .loading.active { display: block; }
+        .spinner {
+            border: 3px solid #e0e0e0;
+            border-top: 3px solid #2a5298;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .face-count {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 12px;
+            border-radius: 8px;
+            color: #856404;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 12px;
+            border-radius: 8px;
+            color: #721c24;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+        .details-table {
+            width: 100%;
+            font-size: 13px;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+        .details-table tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .details-table td {
+            padding: 10px 0;
+        }
+        .details-table td:first-child {
+            color: #888;
+            font-weight: 600;
+        }
+        .details-table td:last-child {
+            text-align: right;
+            font-weight: 700;
+            color: #2a5298;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Advanced Face Detection & Emotion Analysis</h1>
+        <p class="subtitle">Real-time facial recognition with AI-powered emotion detection</p>
+        
+        <div class="main-content">
+            <!-- Video Section -->
+            <div class="video-section">
+                <video id="video" width="400" autoplay muted playsinline></video>
+                <canvas id="canvas"></canvas>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="startCamera()">Start Camera</button>
+                    <button class="btn-danger" onclick="stopCamera()">Stop Camera</button>
+                </div>
+                <div class="face-count" id="faceCount" style="display:none;">
+                    📍 Detected <span id="faceNumber">0</span> face(s)
+                </div>
+                <div class="warning" id="warning" style="display:none;">
+                    ⚠️ <span id="warningText">No face detected. Please adjust your camera.</span>
+                </div>
+            </div>
+
+            <!-- Analysis Panel -->
+            <div class="stats-panel">
+                <div class="status-box">
+                    <div class="status-text">Analysis Status</div>
+                    <div id="statusMessage">Ready to analyze</div>
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <div>Loading AI models...</div>
+                    </div>
+                </div>
+
+                <!-- Emotion Grid -->
+                <div>
+                    <div class="stat-label">Emotional Expression</div>
+                    <div class="emotion-grid" id="emotionGrid"></div>
+                </div>
+
+                <!-- Main Emotion -->
+                <div class="stat-card">
+                    <div class="stat-label">Dominant Emotion</div>
+                    <div class="stat-value" id="dominantEmotion">--</div>
+                </div>
+
+                <!-- Confidence -->
+                <div class="stat-card">
+                    <div class="stat-label">Detection Confidence</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1;">
+                            <div class="stat-bar">
+                                <div class="stat-bar-fill" id="confidenceBar"></div>
+                            </div>
+                        </div>
+                        <div style="font-size: 18px; font-weight: 700; color: #2a5298; min-width: 50px;" id="confidenceValue">0%</div>
+                    </div>
+                </div>
+
+                <!-- Facial Features -->
+                <div class="stat-card">
+                    <div class="stat-label">Facial Features</div>
+                    <table class="details-table" id="facialFeatures">
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let animationId;
+        let modelsLoaded = false;
+
+        async function loadModels() {
+            try {
+                document.getElementById('loading').classList.add('active');
+                document.getElementById('statusMessage').textContent = 'Loading AI models...';
+                
+                const MODEL_URL = 'https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/weights/';
+                
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceDescriptorNet.loadFromUri(MODEL_URL),
+                    faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL)
+                ]);
+                
+                modelsLoaded = true;
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('statusMessage').textContent = '✓ Ready to analyze faces';
+                console.log('Models loaded successfully');
+            } catch (error) {
+                console.error('Error loading models:', error);
+                document.getElementById('statusMessage').textContent = '⚠️ Error loading AI models';
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    detectFace();
+                };
+                
+                document.getElementById('statusMessage').textContent = '✓ Camera active - Analyzing...';
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                document.getElementById('warning').style.display = 'block';
+                document.getElementById('warningText').textContent = 'Unable to access camera. Please check permissions.';
+            }
+        }
+
+        function stopCamera() {
+            const stream = video.srcObject;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('statusMessage').textContent = 'Camera stopped';
+            document.getElementById('faceCount').style.display = 'none';
+            resetStats();
+        }
+
+        async function detectFace() {
+            if (!modelsLoaded || !video.srcObject) return;
+
+            try {
+                const detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceExpressions()
+                    .withAgeAndGender();
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (detections.length > 0) {
+                    document.getElementById('warning').style.display = 'none';
+                    document.getElementById('faceCount').style.display = 'block';
+                    document.getElementById('faceNumber').textContent = detections.length;
+                    
+                    // Draw bounding boxes and analyze
+                    detections.forEach((detection, idx) => {
+                        const box = detection.detection.box;
+                        
+                        // Draw box
+                        ctx.strokeStyle = '#2a5298';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(box.x, box.y, box.width, box.height);
+                        
+                        // Draw confidence
+                        const confidence = (detection.detection.score * 100).toFixed(1);
+                        ctx.fillStyle = '#2a5298';
+                        ctx.font = 'bold 14px Arial';
+                        ctx.fillText(`Face ${idx + 1}: ${confidence}%`, box.x, box.y - 10);
+                    });
+
+                    // Update stats with first face
+                    updateStats(detections[0]);
+                } else {
+                    document.getElementById('warning').style.display = 'block';
+                    document.getElementById('faceCount').style.display = 'none';
+                    resetStats();
+                }
+            } catch (error) {
+                console.error('Detection error:', error);
+            }
+
+            animationId = requestAnimationFrame(detectFace);
+        }
+
+        function updateStats(detection) {
+            // Confidence
+            const confidence = (detection.detection.score * 100).toFixed(1);
+            document.getElementById('confidenceValue').textContent = confidence + '%';
+            document.getElementById('confidenceBar').style.width = confidence + '%';
+
+            // Emotions
+            const emotions = detection.expressions;
+            const emotionEntries = Object.entries(emotions)
+                .map(([name, value]) => ({ name, value: (value * 100).toFixed(1) }))
+                .sort((a, b) => b.value - a.value);
+
+            // Update emotion grid
+            const emotionGrid = document.getElementById('emotionGrid');
+            emotionGrid.innerHTML = emotionEntries.map(emotion => `
+                <div class="emotion-item ${emotion.name === emotionEntries[0].name ? 'active' : ''}">
+                    <div class="emotion-name">${emotion.name}</div>
+                    <div class="emotion-percentage">${emotion.value}%</div>
+                </div>
+            `).join('');
+
+            // Dominant emotion
+            document.getElementById('dominantEmotion').textContent = 
+                emotionEntries[0].name.charAt(0).toUpperCase() + emotionEntries[0].name.slice(1);
+
+            // Facial features
+            const features = {
+                'Smile': (emotions.happy * 100).toFixed(1) + '%',
+                'Sadness': (emotions.sad * 100).toFixed(1) + '%',
+                'Anger': (emotions.angry * 100).toFixed(1) + '%',
+                'Fear': (emotions.fearful * 100).toFixed(1) + '%',
+                'Neutral': (emotions.neutral * 100).toFixed(1) + '%',
+                'Surprise': (emotions.surprised * 100).toFixed(1) + '%',
+                'Disgust': (emotions.disgusted * 100).toFixed(1) + '%'
+            };
+
+            if (detection.age && detection.gender) {
+                features['Age'] = Math.round(detection.age) + ' years';
+                features['Gender'] = detection.gender;
+                features['Gender Conf.'] = (detection.genderProbability * 100).toFixed(1) + '%';
+            }
+
+            const table = document.getElementById('facialFeatures');
+            table.innerHTML = Object.entries(features).map(([key, value]) => `
+                <tr>
+                    <td>${key}</td>
+                    <td>${value}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('statusMessage').innerHTML = `<strong>🔍 Live Analysis</strong><br>Detecting expressions & emotions`;
+        }
+
+        function resetStats() {
+            document.getElementById('dominantEmotion').textContent = '--';
+            document.getElementById('confidenceValue').textContent = '0%';
+            document.getElementById('confidenceBar').style.width = '0%';
+            document.getElementById('emotionGrid').innerHTML = '';
+            document.getElementById('facialFeatures').innerHTML = '';
+        }
+
+        // Initialize
+        loadModels();
+    </script>
+</body>
+</html>
