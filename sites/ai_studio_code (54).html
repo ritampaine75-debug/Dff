@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirDraw Pro - Gesture Drawing App</title>
+    
+    <!-- MediaPipe and Support Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --panel: rgba(30, 41, 59, 0.8);
+            --text: #f8fafc;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text);
+        }
+
+        /* Video Feed (Mirrored) */
+        #video-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 240px;
+            height: 180px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid var(--primary);
+            z-index: 100;
+            transform: scaleX(-1);
+        }
+        #input_video { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+        /* Canvas Setup */
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            cursor: none;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            touch-action: none;
+        }
+        #drawCanvas { z-index: 1; background: #ffffff; }
+        #uiCanvas { z-index: 2; pointer-events: none; }
+
+        /* UI Toolbar */
+        .toolbar {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--panel);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .tool-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+
+        button, input[type="color"] {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        button:hover { background: var(--primary); }
+        button.active { background: var(--primary); box-shadow: 0 0 15px var(--primary); }
+
+        .status {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel);
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            z-index: 10;
+            border: 1px solid var(--primary);
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .shortcut-hint { font-size: 12px; opacity: 0.5; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <h2>Initializing AirDraw AI...</h2>
+        <p>Please allow camera access</p>
+    </div>
+
+    <div class="status" id="gesture-status">Hand Not Detected</div>
+
+    <div class="toolbar">
+        <div class="tool-group">
+            <label>Color</label>
+            <input type="color" id="colorPicker" value="#6366f1">
+        </div>
+        
+        <div class="tool-group">
+            <label>Presets</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                <button onclick="setColor('#ff4757')" style="background:#ff4757"></button>
+                <button onclick="setColor('#2ed573')" style="background:#2ed573"></button>
+                <button onclick="setColor('#1e90ff')" style="background:#1e90ff"></button>
+                <button onclick="setColor('#ffa502')" style="background:#ffa502"></button>
+            </div>
+        </div>
+
+        <div class="tool-group">
+            <label>Size</label>
+            <input type="range" id="sizePicker" min="1" max="50" value="5">
+        </div>
+
+        <div class="tool-group">
+            <label>Tools</label>
+            <button id="btn-draw" class="active" onclick="setMode('draw')">Pen</button>
+            <button id="btn-erase" onclick="setMode('erase')">Eraser</button>
+            <button onclick="undo()">Undo</button>
+            <button onclick="redo()">Redo</button>
+            <button onclick="clearCanvas()">Clear All</button>
+        </div>
+
+        <div class="tool-group">
+            <label>Settings</label>
+            <input type="range" id="opacityPicker" min="0.1" max="1.0" step="0.1" value="1.0">
+            <button onclick="downloadImage()">Download PNG</button>
+            <button onclick="toggleDarkMode()">Toggle Theme</button>
+        </div>
+        
+        <div class="shortcut-hint">Pinch to Draw</div>
+    </div>
+
+    <div id="video-container">
+        <video id="input_video"></video>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="drawCanvas"></canvas>
+        <canvas id="uiCanvas"></canvas>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const drawCanvas = document.getElementById('drawCanvas');
+        const uiCanvas = document.getElementById('uiCanvas');
+        const dctx = drawCanvas.getContext('2d');
+        const uictx = uiCanvas.getContext('2d');
+        const statusDiv = document.getElementById('gesture-status');
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentMode = 'draw';
+        let history = [];
+        let redoStack = [];
+
+        // --- Feature 1: Dynamic Resizing ---
+        function resize() {
+            const temp = dctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+            drawCanvas.width = window.innerWidth;
+            drawCanvas.height = window.innerHeight;
+            uiCanvas.width = window.innerWidth;
+            uiCanvas.height = window.innerHeight;
+            dctx.putImageData(temp, 0, 0);
+            // Feature 2: Line Cap smoothing
+            dctx.lineCap = 'round';
+            dctx.lineJoin = 'round';
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Feature 3: Hand Tracking Logic ---
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+                document.getElementById('loading').style.display = 'none';
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+
+        // --- Feature 4: Gesture Processing ---
+        function onResults(results) {
+            uictx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                statusDiv.innerText = "Hand Detected";
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Get Index finger tip (Landmark 8) and Thumb tip (Landmark 4)
+                const indexTip = landmarks[8];
+                const thumbTip = landmarks[4];
+
+                // Convert normalized to pixel coords (Mirrored)
+                const x = (1 - indexTip.x) * drawCanvas.width;
+                const y = indexTip.y * drawCanvas.height;
+
+                // Feature 5: Pinch Detection Logic
+                const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+                const isPinching = distance < 0.05;
+
+                // Feature 6: Visual Cursor Feedback
+                drawCursor(x, y, isPinching);
+
+                if (isPinching) {
+                    if (!isDrawing) {
+                        saveState(); // Feature 7: Auto-save state for Undo
+                        isDrawing = true;
+                        lastX = x;
+                        lastY = y;
+                    }
+                    draw(x, y);
+                } else {
+                    isDrawing = false;
+                }
+            } else {
+                statusDiv.innerText = "Hand Not Detected";
+            }
+        }
+
+        // --- Feature 8: The Drawing Engine ---
+        function draw(x, y) {
+            dctx.beginPath();
+            dctx.moveTo(lastX, lastY);
+            dctx.lineTo(x, y);
+            
+            // Feature 9: Mode switching (Eraser vs Draw)
+            if (currentMode === 'erase') {
+                dctx.globalCompositeOperation = 'destination-out';
+                dctx.lineWidth = document.getElementById('sizePicker').value * 2;
+            } else {
+                dctx.globalCompositeOperation = 'source-over';
+                dctx.strokeStyle = document.getElementById('colorPicker').value;
+                // Feature 10: Opacity Control
+                dctx.globalAlpha = document.getElementById('opacityPicker').value;
+                dctx.lineWidth = document.getElementById('sizePicker').value;
+            }
+            
+            dctx.stroke();
+            lastX = x;
+            lastY = y;
+        }
+
+        function drawCursor(x, y, pinching) {
+            uictx.beginPath();
+            uictx.arc(x, y, pinching ? 5 : 10, 0, Math.PI * 2);
+            uictx.fillStyle = pinching ? '#ff4757' : 'rgba(99, 102, 241, 0.5)';
+            uictx.fill();
+            uictx.strokeStyle = 'white';
+            uictx.lineWidth = 2;
+            uictx.stroke();
+        }
+
+        // --- Feature 11: Undo System ---
+        function saveState() {
+            history.push(dctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+            if (history.length > 20) history.shift();
+            redoStack = [];
+        }
+
+        function undo() {
+            if (history.length > 0) {
+                redoStack.push(dctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+                dctx.putImageData(history.pop(), 0, 0);
+            }
+        }
+
+        // --- Feature 12: Redo System ---
+        function redo() {
+            if (redoStack.length > 0) {
+                history.push(dctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+                dctx.putImageData(redoStack.pop(), 0, 0);
+            }
+        }
+
+        // --- Feature 13: Clear Canvas ---
+        function clearCanvas() {
+            saveState();
+            dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        }
+
+        // --- Feature 14: Download Image ---
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.download = 'airdraw-artwork.png';
+            link.href = drawCanvas.toDataURL();
+            link.click();
+        }
+
+        // --- Feature 15: Color Preset Logic ---
+        function setColor(color) {
+            document.getElementById('colorPicker').value = color;
+            setMode('draw');
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-draw').classList.toggle('active', mode === 'draw');
+            document.getElementById('btn-erase').classList.toggle('active', mode === 'erase');
+        }
+
+        // --- Feature 16: Dark/Light Mode ---
+        let isDark = false;
+        function toggleDarkMode() {
+            isDark = !isDark;
+            drawCanvas.style.background = isDark ? '#1e293b' : '#ffffff';
+        }
+
+        // --- Feature 17: Mouse Fallback ---
+        let mouseDrawing = false;
+        drawCanvas.addEventListener('mousedown', (e) => {
+            saveState();
+            mouseDrawing = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(mouseDrawing) draw(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', () => mouseDrawing = false);
+
+    </script>
+</body>
+</html>
